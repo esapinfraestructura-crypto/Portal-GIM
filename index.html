@@ -669,40 +669,114 @@ function renderOrganigrama(mc){
   const org=getOrg();
   const isAdmin=SES.rol==='admin';
   let html=`<div class="org-wrap ${isAdmin?'admin-mode':''}">`;
-  if(isAdmin) html+=`<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;margin-bottom:18px;font-size:13px;font-weight:600;color:#92400e;">🛠️ Admin: pasa el cursor sobre una tarjeta para editarla</div>`;
+  if(isAdmin) html+=`<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;margin-bottom:18px;font-size:13px;font-weight:600;color:#92400e;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <span>🛠️ Admin: pasa el cursor sobre una tarjeta para editarla · Usa los botones + para agregar personas</span>
+  </div>`;
 
   // Coordinador
   html+=`<div class="section-lbl" style="text-align:center;">Coordinación</div><div class="org-coord">${personCard(org.coordinador,'coord','var(--navy)')}</div>`;
-
-  // Conector visual
   html+=`<div class="org-connector">│<br>┌───────────┴───────────┐</div>`;
 
   // Planta
-  html+=`<div class="section-lbl" style="text-align:center;">Personal de planta</div><div class="org-planta" style="max-width:700px;margin:0 auto 20px;">`;
+  html+=`<div class="section-lbl" style="text-align:center;">Personal de planta</div>`;
+  html+=`<div class="org-planta" style="max-width:800px;margin:0 auto 20px;">`;
   (org.planta||[]).forEach(p=>{ html+=personCard(p,'planta','var(--cyan)'); });
+  if(isAdmin) html+=`<div style="display:flex;align-items:center;justify-content:center;">
+    <button class="btn btn-sm" onclick="modalAgregarPersona('planta')" style="border-style:dashed;color:var(--cyan);border-color:var(--cyan);">+ Agregar planta</button>
+  </div>`;
   html+=`</div>`;
-  if(org.asistencia?.length){
-    html+=`<div class="org-planta" style="max-width:300px;margin:0 auto 24px;">`;
-    org.asistencia.forEach(p=>{ html+=personCard(p,'planta','#6b7280'); });
+
+  // Asistencia y Asesores — mismo nivel que planta
+  if((org.asistencia||[]).length || (org.asesores||[]).length || isAdmin){
+    html+=`<div class="org-planta" style="max-width:800px;margin:0 auto 24px;">`;
+    (org.asistencia||[]).forEach(p=>{ html+=personCard(p,'planta','#6b7280'); });
+    (org.asesores||[]).forEach(p=>{ html+=personCard(p,'asesores','#92400e'); });
+    if(isAdmin) html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-sm" onclick="modalAgregarPersona('asistencia')" style="border-style:dashed;color:#6b7280;border-color:#6b7280;">+ Asistencia</button>
+      <button class="btn btn-sm" onclick="modalAgregarPersona('asesores')" style="border-style:dashed;color:#92400e;border-color:#92400e;">+ Asesor</button>
+    </div>`;
     html+='</div>';
   }
 
   // Contratistas por equipo
   html+=`<div class="section-lbl" style="text-align:center;margin-top:8px;">Equipo contratista — organización por función</div>`;
-  (org.equipos||[]).forEach(eq=>{
+  (org.equipos||[]).forEach((eq,ei)=>{
     html+=`<div class="org-equipo">
-      <div class="org-equipo-title" style="background:${eq.color}1a;color:${eq.color};">${esc(eq.nombre)} (${eq.personas.length})</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div class="org-equipo-title" style="background:${eq.color}1a;color:${eq.color};margin-bottom:0;">${esc(eq.nombre)} (${eq.personas.length})</div>
+        ${isAdmin?`<button class="btn btn-sm" onclick="modalAgregarPersona('equipo',${ei})" style="border-style:dashed;color:${eq.color};border-color:${eq.color};">+ Agregar</button>`:''}
+      </div>
       <div class="org-equipo-grid">`;
     eq.personas.forEach(p=>{ html+=personCard(p,'contratista',eq.color); });
     html+=`</div></div>`;
   });
 
+  // Botón para agregar equipo nuevo
+  if(isAdmin) html+=`<div style="margin-top:16px;text-align:center;">
+    <button class="btn btn-sm btn-primary" onclick="modalAgregarEquipo()">+ Agregar nuevo equipo</button>
+  </div>`;
+
   html+='</div>';
   mc.innerHTML=html;
 }
 
+function modalAgregarPersona(nivel, equipoIdx){
+  const etiqueta = nivel==='planta'?'Personal de planta':nivel==='asistencia'?'Asistencia':
+    (getOrg().equipos||[])[equipoIdx]?.nombre||'Equipo';
+  document.getElementById('modal').innerHTML=`
+    <div class="modal-head"><h3>Agregar persona — ${esc(etiqueta)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Nombre completo</label><input id="apNom" placeholder="Nombre y apellidos"></div>
+      <div class="field"><label>Cargo</label><input id="apCargo" placeholder="Ej: Profesional Universitario"></div>
+      <div class="field"><label>Descripción breve</label><textarea id="apDesc" rows="2" placeholder="Qué hace en la coordinación..."></textarea></div>
+      <div class="field"><label>Usuario del sistema (opcional)</label><input id="apUser" placeholder="primernombre.apellido"></div>
+      <div class="field"><label>Foto (JPG/PNG — máx 2 MB, opcional)</label><input type="file" id="apFoto" accept=".jpg,.jpeg,.png,.webp"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="apSave">Agregar</button></div>`;
+  openModal();
+  document.getElementById('apSave').addEventListener('click',()=>{
+    const nombre=document.getElementById('apNom').value.trim();
+    if(!nombre){ toast('El nombre es obligatorio'); return; }
+    const file=document.getElementById('apFoto').files[0];
+    const apply=(fotoData)=>{
+      const persona={ nombre, cargo:document.getElementById('apCargo').value.trim(),
+        descripcion:document.getElementById('apDesc').value.trim(),
+        usuario:document.getElementById('apUser').value.trim(), foto:fotoData||null };
+      const org=getOrg();
+      if(nivel==='planta'){ if(!org.planta) org.planta=[]; org.planta.push(persona); }
+      else if(nivel==='asistencia'){ if(!org.asistencia) org.asistencia=[]; org.asistencia.push(persona); }
+      else if(nivel==='equipo'){ if(org.equipos&&org.equipos[equipoIdx]){ org.equipos[equipoIdx].personas.push(persona); } }
+      ST.orgData=org;
+      savePortalData().then(()=>{ closeModal(); setView('organigrama'); toast('Persona agregada ✓'); });
+    };
+    if(file){
+      if(file.size>2*1024*1024){ toast('Imagen máx 2 MB'); return; }
+      const r=new FileReader(); r.onload=()=>apply(r.result); r.readAsDataURL(file);
+    } else apply(null);
+  });
+}
+
+function modalAgregarEquipo(){
+  document.getElementById('modal').innerHTML=`
+    <div class="modal-head"><h3>Nuevo equipo</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Nombre del equipo</label><input id="aeNom" placeholder="Ej: Gestión Documental"></div>
+      <div class="field"><label>Color (hex)</label><input id="aeColor" type="color" value="#0e7490" style="width:60px;height:36px;border:none;cursor:pointer;"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="aeSave">Crear equipo</button></div>`;
+  openModal();
+  document.getElementById('aeSave').addEventListener('click',async()=>{
+    const nombre=document.getElementById('aeNom').value.trim();
+    if(!nombre){ toast('El nombre es obligatorio'); return; }
+    const org=getOrg();
+    if(!org.equipos) org.equipos=[];
+    org.equipos.push({ nombre, color:document.getElementById('aeColor').value, personas:[] });
+    ST.orgData=org;
+    await savePortalData(); closeModal(); setView('organigrama'); toast('Equipo creado ✓');
+  });
+}
+
 function editPersona(encoded){
-  // For now open a simple edit modal
   let ref;
   try{ ref=JSON.parse(decodeURIComponent(encoded)); }catch(e){ return; }
   const org=getOrg();
