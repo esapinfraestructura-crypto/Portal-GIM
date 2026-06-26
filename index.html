@@ -807,6 +807,37 @@ function modalAgregarEquipo(){
   });
 }
 
+function moverPersona(encoded, dir){
+  let ref;
+  try{ ref=JSON.parse(decodeURIComponent(encoded)); }catch(e){ return; }
+  const org=getOrg();
+  const i=Number(ref.idx);
+  let arr=null;
+  if(ref.tipo==='planta')       arr=org.planta;
+  else if(ref.tipo==='asistencia') arr=org.asistencia;
+  else if(ref.tipo==='asesores')   arr=org.asesores;
+  else if(ref.tipo==='contratista'){
+    const eq=(org.equipos||[])[Number(ref.equipoIdx)];
+    if(eq) arr=eq.personas;
+  }
+  if(!arr||arr.length<2) return;
+  const j=i+dir;
+  if(j<0||j>=arr.length) return;
+  const tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp;
+  ST.orgData=org;
+  setView('organigrama');
+  toast(dir<0?'↑ Persona movida hacia arriba':'↓ Persona movida hacia abajo');
+  savePortalData();
+}
+
+async function resetOrganigrama(){
+  if(!confirm('¿Restablecer el organigrama a la estructura oficial?\nSe perderán fotos y descripciones personalizadas.')) return;
+  ST.orgData=structuredClone(ORG_DEFAULT);
+  await savePortalData();
+  setView('organigrama');
+  toast('✅ Organigrama restablecido');
+}
+
 function editPersona(encoded){
   let ref; try{ ref=JSON.parse(decodeURIComponent(encoded)); }catch(e){ return; }
   const org=getOrg();
