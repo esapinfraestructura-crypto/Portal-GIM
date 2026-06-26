@@ -645,17 +645,42 @@ function getAv(p){ const f=getFase(p); if(f==='finalizado') return 100; if(f==='
 function fmtD(iso){ if(!iso) return '—'; try{ const d=new Date(iso); return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso; } }
 
 /* ═══ ORGANIGRAMA ═══ */
-function getOrg(){ return ST.orgData || structuredClone(ORG_DEFAULT); }
+function getOrg(){
+  if(!ST.orgData) return structuredClone(ORG_DEFAULT);
+  const org = ST.orgData;
+  // Migrar estructura antigua: si asesores no existe como campo separado
+  // pero existe como equipo, moverlo al nivel correcto
+  if(!org.asesores || org.asesores.length===0){
+    const asesorEquipo = (org.equipos||[]).find(e=>e.nombre==='Asesores');
+    if(asesorEquipo){
+      org.asesores = asesorEquipo.personas || [];
+      org.equipos = (org.equipos||[]).filter(e=>e.nombre!=='Asesores');
+    } else {
+      org.asesores = org.asesores || [];
+    }
+  }
+  if(!org.asistencia) org.asistencia = [];
+  if(!org.equipos) org.equipos = structuredClone(ORG_DEFAULT.equipos);
+  return org;
+}
 
-function personCard(p, tipo, borderColor, idx, total){
+async function resetOrganigrama(){
+  if(!confirm('¿Restablecer el organigrama a la estructura oficial? Perderás los datos actuales del organigrama (fotos, descripciones personalizadas).')) return;
+  ST.orgData = structuredClone(ORG_DEFAULT);
+  await savePortalData();
+  setView('organigrama');
+  toast('✅ Organigrama restablecido correctamente');
+}
+
+function personCard(p, tipo, borderColor, idx, total, equipoIdx){
   const foto=p.foto?`<img class="p-foto" src="${p.foto}" alt="${esc(p.nombre)}">`:`<div class="p-foto-ph">👤</div>`;
-  const ref=encodeURIComponent(JSON.stringify({tipo, usuario:p.usuario||'', idx:idx||0}));
+  const ref=encodeURIComponent(JSON.stringify({tipo:tipo, idx:idx, equipoIdx:equipoIdx!==undefined?equipoIdx:-1, usuario:p.usuario||''}));
   const adminBtns=SES.rol==='admin'?`
     <div style="display:none;position:absolute;top:6px;right:6px;gap:3px;flex-direction:column;" class="p-admin-btns">
-      ${idx>0?`<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="moverPersona('${ref}',-1)" title="Subir">↑</button>`:'<span style="width:28px;"></span>'}
-      ${(total&&idx<total-1)?`<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="moverPersona('${ref}',1)" title="Bajar">↓</button>`:'<span style="width:28px;"></span>'}
-      <button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="editPersona('${ref}')" title="Editar">✏️</button>
-      ${tipo!=='coord'?`<button class="btn btn-sm btn-danger" style="padding:2px 6px;font-size:11px;" onclick="eliminarPersona('${ref}')" title="Eliminar">🗑️</button>`:''}
+      ${idx>0?`<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();moverPersona('${ref}',-1)">↑</button>`:'<span style="height:24px;display:block;"></span>'}
+      ${(total!==undefined&&idx<total-1)?`<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();moverPersona('${ref}',1)">↓</button>`:'<span style="height:24px;display:block;"></span>'}
+      <button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();editPersona('${ref}')">✏️</button>
+      ${tipo!=='coord'?`<button class="btn btn-sm btn-danger" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();eliminarPersona('${ref}')">🗑️</button>`:''}
     </div>`:'';
   return `<div class="person-card ${tipo}" style="border-top-color:${borderColor||'var(--cyan)'};position:relative;"
     onmouseenter="this.querySelector('.p-admin-btns')&&(this.querySelector('.p-admin-btns').style.display='flex')"
@@ -712,13 +737,14 @@ function renderOrganigrama(mc){
         ${isAdmin?`<button class="btn btn-sm" onclick="modalAgregarPersona('equipo',${ei})" style="border-style:dashed;color:${eq.color};border-color:${eq.color};">+ Agregar</button>`:''}
       </div>
       <div class="org-equipo-grid">`;
-    eq.personas.forEach((p,i,arr)=>{ html+=personCard(p,'contratista',eq.color,i,arr.length); });
+    eq.personas.forEach((p,i,arr)=>{ html+=personCard(p,'contratista',eq.color,i,arr.length,ei); });
     html+=`</div></div>`;
   });
 
   // Botón para agregar equipo nuevo
   if(isAdmin) html+=`<div style="margin-top:16px;text-align:center;">
     <button class="btn btn-sm btn-primary" onclick="modalAgregarEquipo()">+ Agregar nuevo equipo</button>
+    <button class="btn btn-sm btn-danger" onclick="resetOrganigrama()" style="margin-left:8px;">↺ Restablecer organigrama</button>
   </div>`;
 
   html+='</div>';
@@ -784,16 +810,18 @@ function modalAgregarEquipo(){
 function editPersona(encoded){
   let ref; try{ ref=JSON.parse(decodeURIComponent(encoded)); }catch(e){ return; }
   const org=getOrg();
-  function findP(arr){ return (arr||[]).find(p=>p.usuario&&p.usuario===ref.usuario)||(arr||[])[ref.idx||0]; }
-  let persona=null;
+  const i=ref.idx||0;
+  let persona=null, arr=null;
   if(ref.tipo==='coord') persona=org.coordinador;
-  else if(ref.tipo==='planta') persona=findP(org.planta);
-  else if(ref.tipo==='asistencia') persona=findP(org.asistencia);
-  else if(ref.tipo==='asesores') persona=findP(org.asesores);
+  else if(ref.tipo==='planta'){ arr=org.planta; }
+  else if(ref.tipo==='asistencia'){ arr=org.asistencia; }
+  else if(ref.tipo==='asesores'){ arr=org.asesores; }
   else if(ref.tipo==='contratista'){
-    for(const eq of org.equipos||[]){ const f=findP(eq.personas); if(f){ persona=f; break; } }
+    const eq=(org.equipos||[])[ref.equipoIdx];
+    if(eq&&eq.personas[i]) persona=eq.personas[i];
   }
-  if(!persona){ toast('No se encontró la persona — intenta recargar la página'); return; }
+  if(arr) persona=arr[i];
+  if(!persona){ toast('No se encontró la persona'); return; }
   document.getElementById('modal').innerHTML=`
     <div class="modal-head"><h3>Editar: ${esc(persona.nombre||'')}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
@@ -805,26 +833,50 @@ function editPersona(encoded){
     </div>
     <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="eSave">Guardar</button></div>`;
   openModal();
+
+  // Vista previa inmediata al seleccionar foto
+  document.getElementById('eFoto')?.addEventListener('change', function(){
+    const file=this.files[0];
+    if(!file) return;
+    if(file.size>3*1024*1024){ toast('La imagen supera 3 MB — usa una más pequeña'); this.value=''; return; }
+    const r=new FileReader();
+    r.onload=function(e){
+      let prev=document.getElementById('fotoPreview');
+      if(!prev){
+        prev=document.createElement('div');
+        prev.id='fotoPreview';
+        prev.style.cssText='margin-top:10px;display:flex;align-items:center;gap:10px;padding:8px;background:#f0fdf4;border-radius:8px;';
+        document.getElementById('eFoto').parentNode.appendChild(prev);
+      }
+      prev.innerHTML='<img src="'+e.target.result+'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #15803d;">'
+        +'<span style="font-size:12.5px;color:#15803d;font-weight:600;">✓ Foto lista — haz clic en Guardar</span>';
+    };
+    r.readAsDataURL(file);
+  });
+
   document.getElementById('eQuitarFoto')?.addEventListener('click',()=>{
-    persona.nombre=document.getElementById('eNom').value.trim();
-    persona.cargo=document.getElementById('eCargo').value.trim();
-    persona.descripcion=document.getElementById('eDesc').value.trim();
     persona.foto=null; ST.orgData=org;
     savePortalData().then(()=>{ closeModal(); setView('organigrama'); toast('Foto eliminada'); });
   });
+
   document.getElementById('eSave').addEventListener('click',()=>{
+    const nom=document.getElementById('eNom').value.trim();
     const file=document.getElementById('eFoto').files[0];
     const apply=(fotoData)=>{
-      persona.nombre=document.getElementById('eNom').value.trim();
+      persona.nombre=nom||persona.nombre;
       persona.cargo=document.getElementById('eCargo').value.trim();
       persona.descripcion=document.getElementById('eDesc').value.trim();
       if(fotoData!==undefined) persona.foto=fotoData;
       ST.orgData=org;
-      savePortalData().then(()=>{ closeModal(); setView('organigrama'); toast('Guardado ✓'); });
+      toast('Guardando...');
+      savePortalData().then(()=>{ closeModal(); setView('organigrama'); toast('✅ Guardado correctamente'); });
     };
     if(file){
-      if(file.size>2*1024*1024){ toast('Imagen max 2 MB'); return; }
-      const r=new FileReader(); r.onload=()=>apply(r.result); r.readAsDataURL(file);
+      if(file.size>3*1024*1024){ toast('La imagen supera 3 MB — usa una más pequeña'); return; }
+      const r=new FileReader();
+      r.onload=()=>apply(r.result);
+      r.onerror=()=>toast('Error al leer el archivo — intenta con otra imagen');
+      r.readAsDataURL(file);
     } else { apply(undefined); }
   });
 }
@@ -832,20 +884,23 @@ function editPersona(encoded){
 function eliminarPersona(encoded){
   let ref; try{ ref=JSON.parse(decodeURIComponent(encoded)); }catch(e){ return; }
   const org=getOrg();
-  function findIdx(arr){
-    const i=(arr||[]).findIndex(p=>p.usuario&&p.usuario===ref.usuario);
-    return i>=0?i:(ref.idx||0);
-  }
+  const i=ref.idx||0;
   let nombre='esta persona';
-  if(ref.tipo==='planta'&&org.planta) nombre=org.planta[findIdx(org.planta)]?.nombre||nombre;
-  else if(ref.tipo==='asistencia'&&org.asistencia) nombre=org.asistencia[findIdx(org.asistencia)]?.nombre||nombre;
-  else if(ref.tipo==='asesores'&&org.asesores) nombre=org.asesores[findIdx(org.asesores)]?.nombre||nombre;
-  else if(ref.tipo==='contratista'){ for(const eq of org.equipos||[]){ const f=eq.personas[findIdx(eq.personas)]; if(f){ nombre=f.nombre; break; } } }
+  if(ref.tipo==='planta'&&org.planta&&org.planta[i]) nombre=org.planta[i].nombre;
+  else if(ref.tipo==='asistencia'&&org.asistencia&&org.asistencia[i]) nombre=org.asistencia[i].nombre;
+  else if(ref.tipo==='asesores'&&org.asesores&&org.asesores[i]) nombre=org.asesores[i].nombre;
+  else if(ref.tipo==='contratista'){
+    const eq=(org.equipos||[])[ref.equipoIdx];
+    if(eq&&eq.personas[i]) nombre=eq.personas[i].nombre;
+  }
   if(!confirm('Eliminar a '+nombre+' del organigrama?')) return;
-  if(ref.tipo==='planta'&&org.planta) org.planta.splice(findIdx(org.planta),1);
-  else if(ref.tipo==='asistencia'&&org.asistencia) org.asistencia.splice(findIdx(org.asistencia),1);
-  else if(ref.tipo==='asesores'&&org.asesores) org.asesores.splice(findIdx(org.asesores),1);
-  else if(ref.tipo==='contratista'){ for(const eq of org.equipos||[]){ const i=findIdx(eq.personas); if(eq.personas[i]){ eq.personas.splice(i,1); break; } } }
+  if(ref.tipo==='planta'&&org.planta) org.planta.splice(i,1);
+  else if(ref.tipo==='asistencia'&&org.asistencia) org.asistencia.splice(i,1);
+  else if(ref.tipo==='asesores'&&org.asesores) org.asesores.splice(i,1);
+  else if(ref.tipo==='contratista'){
+    const eq=(org.equipos||[])[ref.equipoIdx];
+    if(eq&&eq.personas[i]) eq.personas.splice(i,1);
+  }
   ST.orgData=org;
   savePortalData().then(()=>{ setView('organigrama'); toast(nombre+' eliminado del organigrama'); });
 }
