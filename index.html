@@ -238,8 +238,12 @@ const ORG_DEFAULT = {
     { nombre:"Walter David Isaza Avilés", cargo:"Supervisor de Obra", equipo:"Planta", descripcion:"Supervisor técnico de obras en ejecución. Responsable del seguimiento físico en campo.", foto:null, usuario:"walter.isaza" },
     { nombre:"Eva de la Candelaria Maldonado Comelin", cargo:"Secretaria", equipo:"Planta", descripcion:"Soporte administrativo y secretarial de la coordinación.", foto:null, usuario:"eva.maldonado" }
   ],
-  asistencia:[
-    { nombre:"Yadira Alayón Almeciga", cargo:"Asistente del Coordinador", equipo:"Asistencia", descripcion:"Apoyo directo a la gestión del coordinador.", foto:null, usuario:"yadira.alayon" }
+  asistencia:[],
+  asesores:[
+    { nombre:"Yadira Alayón Almeciga", cargo:"Asistente del Coordinador", descripcion:"Apoyo directo a la gestión del coordinador.", foto:null, usuario:"yadira.alayon" },
+    { nombre:"Francisco Alexander Cobadela Tinoco", cargo:"Asesor", descripcion:"Asesoría técnica especializada a la coordinación.", foto:null, usuario:"francisco.cobadela" },
+    { nombre:"José Leonel Rodríguez Ortiz", cargo:"Asesor", descripcion:"Asesoría técnica especializada.", foto:null, usuario:"jose.rodriguez" },
+    { nombre:"Mateo David Acosta Castro", cargo:"Apoyo a la coordinación", descripcion:"Apoyo a la coordinación del GIM.", foto:null, usuario:"mateo.acosta" }
   ],
   equipos:[
     {
@@ -254,8 +258,6 @@ const ORG_DEFAULT = {
         { nombre:"Manuel Andrés Rodríguez Anzola", cargo:"Técnico GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"manuel.rodriguez" },
         { nombre:"Yuri Ximena Umaña González", cargo:"Técnica GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"yuri.umana" },
         { nombre:"John Fredy Lozano Sierra", cargo:"Técnico GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"john.lozano" },
-        { nombre:"Valentina Bernal Triana", cargo:"Técnica GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"valentina.bernal" },
-        { nombre:"Alberto Serna Arellano", cargo:"Técnico GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"alberto.serna" }
       ]
     },
     {
@@ -263,7 +265,9 @@ const ORG_DEFAULT = {
       color:"#7c3aed",
       personas:[
         { nombre:"Saúl Orlando Jerez Ayala", cargo:"Apoyo Jurídico", descripcion:"Asesoría y gestión jurídica de los procesos contractuales.", foto:null, usuario:"saul.jerez" },
-        { nombre:"Pío Camilo Ayure Flórez", cargo:"Apoyo Jurídico", descripcion:"Asesoría jurídica de procesos contractuales.", foto:null, usuario:"pio.ayure" }
+        { nombre:"Pío Camilo Ayure Flórez", cargo:"Apoyo Jurídico", descripcion:"Asesoría jurídica de procesos contractuales.", foto:null, usuario:"pio.ayure" },
+        { nombre:"Valentina Bernal Triana", cargo:"Apoyo Jurídico", descripcion:"Apoyo jurídico a los procesos contractuales del GIM.", foto:null, usuario:"valentina.bernal" },
+        { nombre:"Alberto Serna Arellano", cargo:"Apoyo Jurídico", descripcion:"Apoyo jurídico a los procesos contractuales.", foto:null, usuario:"alberto.serna" }
       ]
     },
     {
@@ -300,15 +304,6 @@ const ORG_DEFAULT = {
         { nombre:"Fabián Alberto Ríos Flórez", cargo:"Técnico UMI", descripcion:"Mantenimiento de sedes ESAP.", foto:null, usuario:"fabian.rios" }
       ]
     },
-    {
-      nombre:"Asesores",
-      color:"#92400e",
-      personas:[
-        { nombre:"Francisco Alexander Cobadela Tinoco", cargo:"Asesor", descripcion:"Asesoría técnica especializada a la coordinación.", foto:null, usuario:"francisco.cobadela" },
-        { nombre:"José Leonel Rodríguez Ortiz", cargo:"Asesor", descripcion:"Asesoría técnica especializada.", foto:null, usuario:"jose.rodriguez" },
-        { nombre:"Mateo David Acosta Castro", cargo:"Contratista", descripcion:"Apoyo a la coordinación.", foto:null, usuario:"mateo.acosta" }
-      ]
-    }
   ]
 };
 
@@ -652,16 +647,24 @@ function fmtD(iso){ if(!iso) return '—'; try{ const d=new Date(iso); return d.
 /* ═══ ORGANIGRAMA ═══ */
 function getOrg(){ return ST.orgData || structuredClone(ORG_DEFAULT); }
 
-function personCard(p, tipo, borderColor){
-  const initials=p.nombre.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+function personCard(p, tipo, borderColor, idx, total){
   const foto=p.foto?`<img class="p-foto" src="${p.foto}" alt="${esc(p.nombre)}">`:`<div class="p-foto-ph">👤</div>`;
-  const editBtn=SES.rol==='admin'?`<button class="edit-foto-btn" onclick="editPersona('${encodeURIComponent(JSON.stringify({tipo,usuario:p.usuario}))}')">✏️ Editar</button>`:'';
-  return `<div class="person-card ${tipo}" style="border-top-color:${borderColor||'var(--cyan)'};">
+  const ref=encodeURIComponent(JSON.stringify({tipo, usuario:p.usuario||'', idx:idx||0}));
+  const adminBtns=SES.rol==='admin'?`
+    <div style="display:none;position:absolute;top:6px;right:6px;gap:3px;flex-direction:column;" class="p-admin-btns">
+      ${idx>0?`<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="moverPersona('${ref}',-1)" title="Subir">↑</button>`:'<span style="width:28px;"></span>'}
+      ${(total&&idx<total-1)?`<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="moverPersona('${ref}',1)" title="Bajar">↓</button>`:'<span style="width:28px;"></span>'}
+      <button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="editPersona('${ref}')" title="Editar">✏️</button>
+      ${tipo!=='coord'?`<button class="btn btn-sm btn-danger" style="padding:2px 6px;font-size:11px;" onclick="eliminarPersona('${ref}')" title="Eliminar">🗑️</button>`:''}
+    </div>`:'';
+  return `<div class="person-card ${tipo}" style="border-top-color:${borderColor||'var(--cyan)'};position:relative;"
+    onmouseenter="this.querySelector('.p-admin-btns')&&(this.querySelector('.p-admin-btns').style.display='flex')"
+    onmouseleave="this.querySelector('.p-admin-btns')&&(this.querySelector('.p-admin-btns').style.display='none')">
+    ${adminBtns}
     ${foto}
     <div class="p-name">${esc(p.nombre)}</div>
-    <div class="p-cargo">${esc(p.cargo)}</div>
+    <div class="p-cargo">${esc(p.cargo||'')}</div>
     ${p.descripcion?`<div class="p-desc">${esc(p.descripcion)}</div>`:''}
-    ${editBtn}
   </div>`;
 }
 
@@ -686,16 +689,18 @@ function renderOrganigrama(mc){
   </div>`;
   html+=`</div>`;
 
-  // Asistencia y Asesores — mismo nivel que planta
-  if((org.asistencia||[]).length || (org.asesores||[]).length || isAdmin){
-    html+=`<div class="org-planta" style="max-width:800px;margin:0 auto 24px;">`;
-    (org.asistencia||[]).forEach(p=>{ html+=personCard(p,'planta','#6b7280'); });
-    (org.asesores||[]).forEach(p=>{ html+=personCard(p,'asesores','#92400e'); });
-    if(isAdmin) html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-sm" onclick="modalAgregarPersona('asistencia')" style="border-style:dashed;color:#6b7280;border-color:#6b7280;">+ Asistencia</button>
+  // Asistencia + Asesores — bloque unificado debajo de planta
+  const grupoDebajo = [...(org.asistencia||[]), ...(org.asesores||[])];
+  if(grupoDebajo.length > 0 || isAdmin){
+    html+=`<div class="section-lbl" style="text-align:center;">Asistencia y Asesores</div>`;
+    html+=`<div class="org-planta" style="max-width:900px;margin:0 auto 24px;">`;
+    (org.asistencia||[]).forEach((p,i,arr)=>{ html+=personCard(p,'asistencia','#6b7280',i,arr.length); });
+    (org.asesores||[]).forEach((p,i,arr)=>{ html+=personCard(p,'asesores','#92400e',i,arr.length); });
+    if(isAdmin) html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-sm" onclick="modalAgregarPersona('asistencia')" style="border-style:dashed;color:#6b7280;border-color:#6b7280;">+ Asistente</button>
       <button class="btn btn-sm" onclick="modalAgregarPersona('asesores')" style="border-style:dashed;color:#92400e;border-color:#92400e;">+ Asesor</button>
     </div>`;
-    html+='</div>';
+    html+=`</div>`;
   }
 
   // Contratistas por equipo
@@ -707,7 +712,7 @@ function renderOrganigrama(mc){
         ${isAdmin?`<button class="btn btn-sm" onclick="modalAgregarPersona('equipo',${ei})" style="border-style:dashed;color:${eq.color};border-color:${eq.color};">+ Agregar</button>`:''}
       </div>
       <div class="org-equipo-grid">`;
-    eq.personas.forEach(p=>{ html+=personCard(p,'contratista',eq.color); });
+    eq.personas.forEach((p,i,arr)=>{ html+=personCard(p,'contratista',eq.color,i,arr.length); });
     html+=`</div></div>`;
   });
 
@@ -825,7 +830,49 @@ function editPersona(encoded){
   });
 }
 
-/* ═══ ADMIN — usuarios ═══ */
+
+function moverPersona(encoded, dir){
+  let ref; try{ ref=JSON.parse(decodeURIComponent(encoded)); }catch(e){ return; }
+  const org=getOrg();
+  let arr=null;
+  if(ref.tipo==='planta') arr=org.planta;
+  else if(ref.tipo==='asistencia') arr=org.asistencia;
+  else if(ref.tipo==='asesores') arr=org.asesores;
+  else if(ref.tipo==='contratista'){
+    for(const eq of org.equipos||[]){
+      const idx=eq.personas.findIndex(p=>p.usuario===ref.usuario);
+      if(idx>=0){ arr=eq.personas; break; }
+    }
+  }
+  if(!arr) return;
+  const idx=arr.findIndex(p=>p.usuario===ref.usuario);
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=arr.length) return;
+  const tmp=arr[idx]; arr[idx]=arr[newIdx]; arr[newIdx]=tmp;
+  ST.orgData=org;
+  savePortalData().then(()=>{ setView('organigrama'); });
+}
+
+function eliminarPersona(encoded){
+  let ref; try{ ref=JSON.parse(decodeURIComponent(encoded)); }catch(e){ return; }
+  const org=getOrg();
+  let nombre='esta persona';
+  if(ref.tipo==='planta'){ nombre=(org.planta||[]).find(p=>p.usuario===ref.usuario)?.nombre||nombre; }
+  else if(ref.tipo==='asistencia'){ nombre=(org.asistencia||[]).find(p=>p.usuario===ref.usuario)?.nombre||nombre; }
+  else if(ref.tipo==='asesores'){ nombre=(org.asesores||[]).find(p=>p.usuario===ref.usuario)?.nombre||nombre; }
+  else if(ref.tipo==='contratista'){
+    for(const eq of org.equipos||[]){ const f=eq.personas.find(p=>p.usuario===ref.usuario); if(f){ nombre=f.nombre; break; } }
+  }
+  if(!confirm('¿Eliminar a '+nombre+' del organigrama?')) return;
+  if(ref.tipo==='planta') org.planta=(org.planta||[]).filter(p=>p.usuario!==ref.usuario);
+  else if(ref.tipo==='asistencia') org.asistencia=(org.asistencia||[]).filter(p=>p.usuario!==ref.usuario);
+  else if(ref.tipo==='asesores') org.asesores=(org.asesores||[]).filter(p=>p.usuario!==ref.usuario);
+  else if(ref.tipo==='contratista'){
+    (org.equipos||[]).forEach(eq=>{ eq.personas=eq.personas.filter(p=>p.usuario!==ref.usuario); });
+  }
+  ST.orgData=org;
+  savePortalData().then(()=>{ setView('organigrama'); toast(nombre+' eliminado del organigrama ✓'); });
+}
 function renderAdmin(mc){
   const activos=ST.usuarios.filter(u=>u.activo!==false).length+1; // +1 super admin
   const inactivos=ST.usuarios.filter(u=>u.activo===false).length;
