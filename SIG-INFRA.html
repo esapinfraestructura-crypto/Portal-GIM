@@ -1749,16 +1749,30 @@ function proyectoResumen(proyecto){
    ============================================================ */
 function render(){
   const app = document.getElementById('app');
-  if(!STATE.role || !STATE.userName){ app.innerHTML = renderTopbar() + renderRoleGate(); attachRoleGateEvents(); return; }
-  let body = '';
-  if(STATE.view==='analytics') body = renderAnalytics();
-  else if(STATE.view==='dashboard') body = renderDashboard();
-  else body = renderDetail();
-  app.innerHTML = renderTopbar() + (STATE.view!=='detail' ? renderNavTabs() : '') + body;
-  attachGlobalEvents();
-  if(STATE.view==='analytics') attachAnalyticsEvents();
-  else if(STATE.view==='dashboard') attachDashboardEvents();
-  else attachDetailEvents();
+  if(!app) return;
+  try{
+    if(!STATE.role || !STATE.userName){
+      app.innerHTML = renderTopbar() + renderRoleGate();
+      attachRoleGateEvents();
+      return;
+    }
+    let body = '';
+    if(STATE.view==='analytics') body = renderAnalytics();
+    else if(STATE.view==='dashboard') body = renderDashboard();
+    else body = renderDetail();
+    app.innerHTML = renderTopbar() + (STATE.view!=='detail' ? renderNavTabs() : '') + body;
+    attachGlobalEvents();
+    if(STATE.view==='analytics') attachAnalyticsEvents();
+    else if(STATE.view==='dashboard') attachDashboardEvents();
+    else attachDetailEvents();
+  }catch(err){
+    console.error('Error en render():', err);
+    app.innerHTML = `<div style="max-width:500px;margin:60px auto;padding:24px;background:#fff;border-radius:12px;border:1px solid #dde1e6;font-family:sans-serif;">
+      <h3 style="color:#b91c1c;margin-bottom:12px;">Error al cargar</h3>
+      <p style="color:#475569;font-size:13px;margin-bottom:16px;">${err.message}</p>
+      <button onclick="location.reload()" style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:13px;cursor:pointer;">↺ Recargar</button>
+    </div>`;
+  }
 }
 
 function renderTopbar(){
