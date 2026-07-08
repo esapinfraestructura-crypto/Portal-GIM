@@ -2786,12 +2786,13 @@ async function devolverEtapa(){
    Init
 ---------------------------------------------------------- */
 async function init(){
-  // 1. Cargar datos locales inmediatamente — mostrar login sin esperar Drive
+  // Cargar todo desde localStorage — instantáneo, sin red
   SCRIPT_URL = loGet('script_url') || '';
   try{ STATE.pwdOverrides = JSON.parse(loGet('pwdOverrides')||'{}'); }catch(e){ STATE.pwdOverrides={}; }
-  STATE.role = loGet('role') || null;
-  STATE.userName = loGet('userName') || '';
+  STATE.role       = loGet('role') || null;
+  STATE.userName   = loGet('userName') || '';
   STATE.currentUsuario = loGet('currentUsuario') || '';
+  STATE.remoteOk   = false;
 
   const cached = shGet('sigInfraData');
   if(cached){
@@ -2806,31 +2807,8 @@ async function init(){
     STATE.actividad=[];
   }
 
-  // 2. Mostrar la app de inmediato (login o herramienta)
+  // Mostrar la app inmediatamente — igual que Gestión de Aulas
   render();
-
-  // 3. Intentar Drive en segundo plano sin bloquear
-  if(SCRIPT_URL){
-    try{
-      const controller=new AbortController();
-      setTimeout(()=>controller.abort(),8000);
-      const res=await fetch(SCRIPT_URL+'?tool='+TOOL_ID,{redirect:'follow',signal:controller.signal});
-      if(res.ok){
-        const data=await res.json();
-        if(data.projects&&data.projects.length>0){
-          STATE.projects=data.projects;
-          STATE.actividad=data.actividad||[];
-          STATE.projects.forEach(p=>{ if(!p.historial) p.historial=[]; });
-          shSet('sigInfraData',JSON.stringify(data));
-          STATE.remoteOk=true;
-          render(); // re-renderizar con datos de Drive
-          showToast('🟢 Datos sincronizados con Drive');
-        }
-      }
-    }catch(e){
-      STATE.remoteOk=false;
-    }
-  }
 }
 init();
 
