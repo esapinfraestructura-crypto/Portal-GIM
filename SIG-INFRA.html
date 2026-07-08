@@ -1556,9 +1556,19 @@ const TOOL_ID = 'sig-infra'; // identificador de esta herramienta en el portal
 
 async function remoteLoad(){
   if(!SCRIPT_URL) throw new Error('sin url');
-  const res = await fetch(SCRIPT_URL + '?tool=' + TOOL_ID, {redirect:'follow'});
-  if(!res.ok) throw new Error('http '+res.status);
-  return await res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), 4000);
+  try{
+    const res = await fetch(SCRIPT_URL + '?tool=' + TOOL_ID, {
+      redirect:'follow', signal: controller.signal
+    });
+    clearTimeout(timer);
+    if(!res.ok) throw new Error('http '+res.status);
+    return await res.json();
+  }catch(e){
+    clearTimeout(timer);
+    throw e;
+  }
 }
 async function remoteSave(payload){
   if(!SCRIPT_URL) return;
@@ -2776,8 +2786,16 @@ async function devolverEtapa(){
    Init
 ---------------------------------------------------------- */
 async function init(){
-  document.getElementById('app').innerHTML = `<div class="loading-wrap">Cargando proyectos...</div>`;
-  await loadState();
+  document.getElementById('app').innerHTML = `<div class="loading-wrap">Cargando...</div>`;
+  // Timeout absoluto — máximo 6 segundos antes de renderizar de todas formas
+  const fallback = setTimeout(()=>{ render(); }, 6000);
+  try{
+    await loadState();
+  }catch(e){
+    STATE.projects = semillaProyectos();
+    STATE.actividad = [];
+  }
+  clearTimeout(fallback);
   render();
 }
 init();
