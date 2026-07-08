@@ -1572,11 +1572,12 @@ async function remoteSave(payload){
 
 async function loadState(){
   SCRIPT_URL = loGet('script_url') || '';
-  // Datos compartidos: intentar remoto primero, caer en localStorage
   try{
     STATE.remoteOk = false;
     if(SCRIPT_URL){
-      const data = await remoteLoad();
+      // Timeout de 5 segundos — si Drive no responde, usa caché local
+      const timeout = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000));
+      const data = await Promise.race([remoteLoad(), timeout]);
       STATE.projects = data.projects || [];
       STATE.actividad = data.actividad || [];
       STATE.projects.forEach(p=>{ if(!p.historial) p.historial=[]; });
@@ -1586,17 +1587,21 @@ async function loadState(){
   }catch(e){
     const raw = shGet('sigInfraData');
     if(raw){
-      const data = JSON.parse(raw);
-      STATE.projects = data.projects || [];
-      STATE.actividad = data.actividad || [];
-      STATE.projects.forEach(p=>{ if(!p.historial) p.historial=[]; });
+      try{
+        const data = JSON.parse(raw);
+        STATE.projects = data.projects || [];
+        STATE.actividad = data.actividad || [];
+        STATE.projects.forEach(p=>{ if(!p.historial) p.historial=[]; });
+      }catch(e2){
+        STATE.projects = semillaProyectos();
+        STATE.actividad = [];
+      }
     } else {
       STATE.projects = semillaProyectos();
       STATE.actividad = [];
       await saveProjects();
     }
   }
-  // Preferencias personales — solo locales
   try{ STATE.pwdOverrides = JSON.parse(loGet('pwdOverrides')||'{}'); }catch(e){ STATE.pwdOverrides={}; }
   STATE.role = loGet('role') || null;
   STATE.userName = loGet('userName') || '';
