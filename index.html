@@ -232,7 +232,6 @@ img{display:block;}
   </div>
   <div class="nav-bar" id="navBar">
     <button class="nav-tab active" data-tab="herramientas">🧰 Herramientas</button>
-    <button class="nav-tab" data-tab="dashboard">📊 Dashboard</button>
     <button class="nav-tab" data-tab="organigrama">👥 Organigrama</button>
     <button class="nav-tab" data-tab="admin" id="tabAdmin" style="display:none;">⚙️ Administración</button>
   </div>
@@ -301,12 +300,17 @@ const ORG_DEFAULT = {
     { nombre:"Walter David Isaza Avilés", cargo:"Supervisor de Obra", equipo:"Planta", descripcion:"Supervisor técnico de obras en ejecución. Responsable del seguimiento físico en campo.", foto:null, usuario:"walter.isaza" },
     { nombre:"Eva de la Candelaria Maldonado Comelin", cargo:"Secretaria", equipo:"Planta", descripcion:"Soporte administrativo y secretarial de la coordinación.", foto:null, usuario:"eva.maldonado" }
   ],
-  asistencia:[],
+  asistencia:[
+    { nombre:"Yadira Alayón Almeciga", cargo:"Asistente del Coordinador", descripcion:"Apoyo directo a la gestión del Coordinador del GIM.", foto:null, usuario:"yadira.alayon" }
+  ],
   asesores:[
-    { nombre:"Yadira Alayón Almeciga", cargo:"Asistente del Coordinador", descripcion:"Apoyo directo a la gestión del coordinador.", foto:null, usuario:"yadira.alayon" },
-    { nombre:"Francisco Alexander Cobadela Tinoco", cargo:"Asesor", descripcion:"Asesoría técnica especializada a la coordinación.", foto:null, usuario:"francisco.cobadela" },
+    { nombre:"Francisco Alexander Cobadela Tinoco", cargo:"Asesor Técnico", descripcion:"Asesoría técnica especializada a la coordinación.", foto:null, usuario:"francisco.cobadela" },
     { nombre:"José Leonel Rodríguez Ortiz", cargo:"Asesor", descripcion:"Asesoría técnica especializada.", foto:null, usuario:"jose.rodriguez" },
-    { nombre:"Mateo David Acosta Castro", cargo:"Apoyo a la coordinación", descripcion:"Apoyo a la coordinación del GIM.", foto:null, usuario:"mateo.acosta" }
+    { nombre:"Mateo David Acosta Castro", cargo:"Apoyo a la Coordinación", descripcion:"Apoyo a la coordinación del GIM.", foto:null, usuario:"mateo.acosta" }
+  ],
+  paa:[
+    { nombre:"Camilo Medina", cargo:"Coordinación PAA", descripcion:"Gestión del Plan Anual de Adquisiciones.", foto:null, usuario:"camilo.medina" },
+    { nombre:"Viviana Paola Perdomo Medina", cargo:"Coordinación PAA", descripcion:"Apoyo al Plan Anual de Adquisiciones.", foto:null, usuario:"viviana.perdomo" }
   ],
   equipos:[
     {
@@ -504,7 +508,6 @@ function setView(v){
   document.querySelectorAll('.nav-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===v));
   const mc=document.getElementById('mainContent');
   if(v==='herramientas') renderHerramientas(mc);
-  else if(v==='dashboard') renderDashboard(mc);
   else if(v==='organigrama') renderOrganigrama(mc);
   else if(v==='admin' && SES.rol==='admin') renderAdmin(mc);
 }
@@ -832,7 +835,6 @@ async function renderDashboard(mc){
     <button class="btn btn-sm" id="btnDashReport" style="background:var(--navy);color:#fff;border-color:var(--navy);">
       🖨️ Exportar informe consolidado
     </button>
-    <button class="btn btn-sm btn-primary" onclick="setView('dashboard')">🔄 Actualizar</button>
   </div>
 
   <!-- BOTTOM ROW -->
@@ -1157,19 +1159,32 @@ function renderOrganigrama(mc){
   </div>`;
   html+=`</div>`;
 
-  // Asistencia + Asesores — bloque unificado debajo de planta
-  const grupoDebajo = [...(org.asistencia||[]), ...(org.asesores||[])];
-  if(grupoDebajo.length > 0 || isAdmin){
-    html+=`<div class="section-lbl" style="text-align:center;">Asistencia y Asesores</div>`;
-    html+=`<div class="org-planta" style="max-width:900px;margin:0 auto 24px;">`;
-    (org.asistencia||[]).forEach((p,i,arr)=>{ html+=personCard(p,'asistencia','#6b7280',i,arr.length); });
-    (org.asesores||[]).forEach((p,i,arr)=>{ html+=personCard(p,'asesores','#92400e',i,arr.length); });
-    if(isAdmin) html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-sm" onclick="modalAgregarPersona('asistencia')" style="border-style:dashed;color:#6b7280;border-color:#6b7280;">+ Asistente</button>
-      <button class="btn btn-sm" onclick="modalAgregarPersona('asesores')" style="border-style:dashed;color:#92400e;border-color:#92400e;">+ Asesor</button>
-    </div>`;
+  // Asistente — Yadira (nivel propio, debajo de planta)
+  if((org.asistencia||[]).length > 0 || isAdmin){
+    html+=`<div class="section-lbl" style="text-align:center;">Asistencia a la Coordinación</div>`;
+    html+=`<div class="org-planta" style="max-width:500px;margin:0 auto 20px;">`;
+    (org.asistencia||[]).forEach((p,i,arr)=>{ html+=personCard(p,'asistencia','#0e7490',i,arr.length); });
+    if(isAdmin) html+=`<button class="btn btn-sm" onclick="modalAgregarPersona('asistencia')" style="border-style:dashed;color:#0e7490;border-color:#0e7490;">+ Asistente</button>`;
     html+=`</div>`;
   }
+
+  // Asesores — Francisco, José, Mateo
+  if((org.asesores||[]).length > 0 || isAdmin){
+    html+=`<div class="section-lbl" style="text-align:center;">Asesores de la Coordinación</div>`;
+    html+=`<div class="org-planta" style="max-width:900px;margin:0 auto 24px;">`;
+    (org.asesores||[]).forEach((p,i,arr)=>{ html+=personCard(p,'asesores','#92400e',i,arr.length); });
+    if(isAdmin) html+=`<button class="btn btn-sm" onclick="modalAgregarPersona('asesores')" style="border-style:dashed;color:#92400e;border-color:#92400e;">+ Asesor</button>`;
+    html+=`</div>`;
+  }
+
+  // PAA — Camilo Medina, Viviana Perdomo
+  if((org.paa||[]).length > 0){
+    html+=`<div class="section-lbl" style="text-align:center;">Coordinación PAA</div>`;
+    html+=`<div class="org-planta" style="max-width:600px;margin:0 auto 24px;">`;
+    (org.paa||[]).forEach((p,i,arr)=>{ html+=personCard(p,'paa','#7c3aed',i,arr.length); });
+    html+=`</div>`;
+  }
+
 
   // Contratistas por equipo
   html+=`<div class="section-lbl" style="text-align:center;margin-top:8px;">Equipo contratista — organización por función</div>`;
