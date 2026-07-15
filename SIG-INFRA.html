@@ -1126,7 +1126,7 @@ function openProjModal(id){
           <option ${f.sede==='Territoriales'?'selected':''}>Territoriales</option>
         </select></div>
         <div class="field"><label>Tipo de proceso</label><select id="mTipo" ${dis}>
-          ${['Selección abreviada menor cuantía','Licitación pública','Subasta inversa','Contratación directa','Mínima cuantía','Por definir'].map(t=>`<option ${f.tipo===t?'selected':''}>${t}</option>`).join('')}
+          ${(()=>{return ['Selección abreviada menor cuantía','Licitación pública','Subasta inversa','Contratación directa','Mínima cuantía','Por definir'].map(t=>'<option '+(f.tipo===t?'selected':'')+'>'+t+'</option>').join('');})()}
         </select></div>
       </div>
       <div class="field"><label>Objeto contractual</label><textarea id="mObj" ${dis}>${esc(f.objeto)}</textarea></div>
@@ -1156,27 +1156,27 @@ function openProjModal(id){
       <div class="form-2">
         <div class="field"><label>👷 Técnico responsable</label><select id="mTec" ${dis}>
           <option value="">Sin asignar</option>
-          ${tecnicos.map(n=>`<option ${f.tecnico===n?'selected':''}>${n}</option>`).join('')}
+          ${tecnicos.map(n=>'<option '+(f.tecnico===n?'selected':'')+'>'+n+'</option>').join('')}
         </select></div>
         <div class="field"><label>⚖️ Apoyo jurídico</label><select id="mJur" ${dis}>
           <option value="">Sin asignar</option>
-          ${juridicos.map(n=>`<option ${f.juridico===n?'selected':''}>${n}</option>`).join('')}
+          ${juridicos.map(n=>'<option '+(f.juridico===n?'selected':'')+'>'+n+'</option>').join('')}
         </select></div>
       </div>
       <div class="form-2">
         <div class="field"><label>💰 Apoyo financiero</label><select id="mFin" ${dis}>
           <option value="">Sin asignar</option>
-          ${financieros.map(n=>`<option ${f.financiero===n?'selected':''}>${n}</option>`).join('')}
+          ${financieros.map(n=>'<option '+(f.financiero===n?'selected':'')+'>'+n+'</option>').join('')}
         </select></div>
         <div class="field"><label>🏗️ Supervisor de obra (Arq./Ing.)</label><select id="mSup" ${dis}>
           <option value="">Sin asignar</option>
-          ${supervisores.map(n=>`<option ${f.supervisor===n?'selected':''}>${n}</option>`).join('')}
+          ${supervisores.map(n=>'<option '+(f.supervisor===n?'selected':'')+'>'+n+'</option>').join('')}
         </select></div>
       </div>
       <div class="form-2">
         <div class="field"><label>🔍 Apoyo a la supervisión</label><select id="mApSup" ${dis}>
           <option value="">Sin asignar</option>
-          ${tecnicos.map(n=>`<option ${f.apoyoSupervision===n?'selected':''}>${n}</option>`).join('')}
+          ${tecnicos.map(n=>'<option '+(f.apoyoSupervision===n?'selected':'')+'>'+n+'</option>').join('')}
         </select></div>
         <div></div>
       </div>
@@ -1215,29 +1215,7 @@ function openProjModal(id){
           <div class="field"><label>Fecha acta final</label><input type="date" id="mFActa" value="${f.fechaActaFinal||''}" ${dis}></div>
         </div>
         <!-- Comparativos visuales -->
-        ${f.valorContrato>0?`
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
-          <div style="padding:10px 12px;background:#fff;border-radius:8px;border:1px solid #d1fae5;">
-            <div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:6px;">💰 PAGADO vs CONTRATO</div>
-            <div style="height:8px;background:#d1fae5;border-radius:4px;overflow:hidden;margin-bottom:5px;">
-              <div style="width:${Math.min(100,Math.round((f.pagado||0)/f.valorContrato*100))}%;height:100%;background:#059669;"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);">
-              <span><strong style="color:#059669;">$${Number(f.pagado||0).toLocaleString('es-CO')}</strong> pagado</span>
-              <strong>${Math.min(100,Math.round((f.pagado||0)/f.valorContrato*100))}%</strong>
-            </div>
-          </div>
-          <div style="padding:10px 12px;background:#fff;border-radius:8px;border:1px solid #dbeafe;">
-            <div style="font-size:11px;font-weight:700;color:#0284c7;margin-bottom:6px;">🏗️ AVANCE OBRA FÍSICA</div>
-            <div style="height:8px;background:#dbeafe;border-radius:4px;overflow:hidden;margin-bottom:5px;">
-              <div style="width:${f.avanceObra||0}%;height:100%;background:#0284c7;"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);">
-              <span>Ejecutado en obra</span>
-              <strong style="color:#0284c7;">${f.avanceObra||0}%</strong>
-            </div>
-          </div>
-        </div>`:''}
+        ${(()=>{if(!f.valorContrato>0)return '';const pp=Math.min(100,Math.round((f.pagado||0)/f.valorContrato*100));const ao=f.avanceObra||0;return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;"><div style="padding:10px 12px;background:#fff;border-radius:8px;border:1px solid #d1fae5;"><div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:6px;">Pagado vs Contrato</div><div style="height:8px;background:#d1fae5;border-radius:4px;overflow:hidden;margin-bottom:5px;"><div style="width:'+pp+'%;height:100%;background:#059669;"></div></div><div style="font-size:10.5px;color:var(--muted);">$'+Number(f.pagado||0).toLocaleString('es-CO')+' pagado · <strong>'+pp+'%</strong></div></div><div style="padding:10px 12px;background:#fff;border-radius:8px;border:1px solid #dbeafe;"><div style="font-size:11px;font-weight:700;color:#0284c7;margin-bottom:6px;">Avance Obra Fisica</div><div style="height:8px;background:#dbeafe;border-radius:4px;overflow:hidden;margin-bottom:5px;"><div style="width:'+ao+'%;height:100%;background:#0284c7;"></div></div><div style="font-size:10.5px;color:var(--muted);">Ejecutado en obra · <strong>'+ao+'%</strong></div></div></div>';})()}
       </div>
 
       <!-- VALORES -->
@@ -1252,19 +1230,12 @@ function openProjModal(id){
       </div>
       <div class="field"><label>Observaciones</label><textarea id="mObs" ${dis}>${esc(f.observaciones||'')}</textarea></div>
 
-      ${!isNew&&f.historial?.length?`
-      <div class="section-sep">Historial de cambios</div>
-      <div style="max-height:180px;overflow-y:auto;">
-        ${f.historial.slice(0,10).map(h=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
-          <div style="display:flex;justify-content:space-between;"><strong>${esc(h.nombre||h.persona||'')}</strong><span style="color:var(--muted);font-size:10.5px;">${fmtTS(h.fecha)}</span></div>
-          <div style="color:var(--muted);">${esc(h.accion)}</div>
-        </div>`).join('')}
-      </div>`:''}
+      ${(()=>{if(!(!isNew&&f.historial?.length))return '';return '<div class="section-sep">Historial de cambios</div><div style="max-height:180px;overflow-y:auto;">'+f.historial.slice(0,10).map(h=>'<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;"><div style="display:flex;justify-content:space-between;"><strong>'+esc(h.nombre||h.persona||'')+'</strong><span style="color:var(--muted);font-size:10.5px;">'+fmtTS(h.fecha)+'</span></div><div style="color:var(--muted);">'+esc(h.accion)+'</div></div>').join('')+'</div>';})()}
     </div>
     <div class="modal-foot">
-      <div>${!isNew&&isAdmin()?`<button class="btn btn-danger btn-sm" id="mDel">🗑️ Eliminar</button>`:''}</div>
+      <div>${(!isNew&&isAdmin())?'<button class="btn btn-danger btn-sm" id="mDel">Eliminar</button>':''}</div>
       <div style="display:flex;gap:8px;">
-        ${!isNew?`<button class="btn btn-sm" style="background:#0f1f3d;color:#fff;border-color:#0f1f3d;" onclick="exportProyecto('${f.id}')">🖨️ Informe</button>`:''}
+        ${!isNew?'<button class="btn btn-sm" style="background:#0f1f3d;color:#fff;border-color:#0f1f3d;" onclick="exportProyecto(\"'+f.id+'\")">Informe</button>':''}
         <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
         ${canEditProj()?'<button class="btn btn-primary" id="mSave">💾 Guardar cambios</button>':''}
       </div>
