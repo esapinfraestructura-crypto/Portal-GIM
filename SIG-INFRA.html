@@ -503,7 +503,7 @@ const INACT_MS=30*60*1000, WARN_MS=5*60*1000;
 const ADMIN_ID='u01';
 
 // ══ STATE ══
-let SES=null, PROJ=[], USERS=[], AUDIT=[], SCRIPT_URL='', charts={}, pwdHash={};
+let SES=null, PROJ=[], USERS=[], AUDIT=[], SCRIPT_URL='https://script.google.com/macros/s/AKfycbwWbA8BpxQmPiFQofSjHkeLcnQO_fjp1wGqkuW4fiVu8J765eLW_As8DzaWXiNQy9og/exec', charts={}, pwdHash={};
 let inactTimer=null, inactWarnTimer=null, sessionStart=null;
 let PAGE='dashboard', DARK=false;
 
@@ -744,7 +744,9 @@ function loadTheme(){
 
 // ══ START ══
 function startApp(){
-  SCRIPT_URL=localStorage.getItem(SK)||'';
+  SCRIPT_URL=localStorage.getItem(SK)||'https://script.google.com/macros/s/AKfycbwWbA8BpxQmPiFQofSjHkeLcnQO_fjp1wGqkuW4fiVu8J765eLW_As8DzaWXiNQy9og/exec';
+  if(!SCRIPT_URL)SCRIPT_URL='https://script.google.com/macros/s/AKfycbwWbA8BpxQmPiFQofSjHkeLcnQO_fjp1wGqkuW4fiVu8J765eLW_As8DzaWXiNQy9og/exec';
+  localStorage.setItem(SK,SCRIPT_URL);
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='block';
   document.getElementById('loginLogo').src=_ESAP;
@@ -1074,6 +1076,30 @@ function projCard(p){
 }
 
 // ══ PROJECT MODAL ══
+const TEAM_KEY='sig_teams';
+function getTeams(){
+  try{const d=localStorage.getItem(TEAM_KEY);return d?JSON.parse(d):null;}catch(e){return null;}
+}
+function saveTeams(t){localStorage.setItem(TEAM_KEY,JSON.stringify(t));}
+function getTeamList(rol){
+  const custom=getTeams();
+  if(custom&&custom[rol])return custom[rol];
+  return USERS.filter(u=>u.rol===rol&&u.activo).map(u=>u.nombre);
+}
+function ensureTeams(){
+  const t=getTeams();
+  if(t)return t;
+  const fresh={
+    tecnico:USERS.filter(u=>u.rol==='tecnico'&&u.activo).map(u=>u.nombre),
+    juridico:USERS.filter(u=>u.rol==='juridico'&&u.activo).map(u=>u.nombre),
+    financiero:USERS.filter(u=>u.rol==='financiero'&&u.activo).map(u=>u.nombre),
+    supervisores:getSupervisores()
+  };
+  saveTeams(fresh);
+  return fresh;
+}
+
+
 function openProjModal(id){
   try{
     const p=id?PROJ.find(x=>x.id===id):null;
@@ -1897,28 +1923,6 @@ function saveSupervisores(list){localStorage.setItem(SUP_KEY,JSON.stringify(list
 </body>
 </html>// ══ GESTIÓN DE EQUIPOS Y SUPERVISORES ══
 // Keys for custom team overrides
-const TEAM_KEY='sig_teams';
-function getTeams(){
-  try{const d=localStorage.getItem(TEAM_KEY);return d?JSON.parse(d):null;}catch(e){return null;}
-}
-function saveTeams(t){localStorage.setItem(TEAM_KEY,JSON.stringify(t));}
-function getTeamList(rol){
-  const custom=getTeams();
-  if(custom&&custom[rol])return custom[rol];
-  return USERS.filter(u=>u.rol===rol&&u.activo).map(u=>u.nombre);
-}
-function ensureTeams(){
-  const t=getTeams();
-  if(t)return t;
-  const fresh={
-    tecnico:USERS.filter(u=>u.rol==='tecnico'&&u.activo).map(u=>u.nombre),
-    juridico:USERS.filter(u=>u.rol==='juridico'&&u.activo).map(u=>u.nombre),
-    financiero:USERS.filter(u=>u.rol==='financiero'&&u.activo).map(u=>u.nombre),
-    supervisores:getSupervisores()
-  };
-  saveTeams(fresh);
-  return fresh;
-}
 
 function renderEquipos(){
   const mc=document.getElementById('page-equipos');
