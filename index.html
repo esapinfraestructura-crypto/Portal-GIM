@@ -64,6 +64,21 @@ img{display:block;}
 .field select option{background:#0f1f3d;color:#fff;}
 .field textarea{resize:vertical;min-height:70px;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+.modal-body{padding:22px 24px;overflow-y:auto;flex:1;}
+.modal-head{padding:18px 24px;border-bottom:1px solid var(--border);}
+.modal-head h3{font-size:17px;font-weight:900;color:#0f1f3d;}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.mf{margin-bottom:18px;}
+.mf>span{display:block;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;}
+.mf input,.mf select,.mf textarea{
+  display:block;width:100%;padding:10px 13px;
+  border:1.5px solid #e2e8f0;border-radius:9px;
+  font-size:14px;color:#0f172a;background:#f8fafc;
+  font-family:inherit;box-sizing:border-box;
+}
+.mf textarea{min-height:80px;resize:vertical;}
+.mf select option{background:#fff;color:#0f172a;}
 .err-box{background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.25);color:#fca5a5;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:14px;}
 
 .topbar{
@@ -290,87 +305,89 @@ const ROLES = {
 const ORG_DEFAULT = {
   coordinador: {
     nombre:"Iván David Céspedes Roa",
-    cargo:"Coordinador General GIM",
+    cargo:"Coordinador del Grupo de Infraestructura y Mantenimiento",
     equipo:"Dirección",
-    descripcion:"Líder de la Coordinación de Infraestructura y Mantenimiento. Responsable de la dirección, supervisión y toma de decisiones estratégicas del grupo.",
+    descripcion:"Responsable de la dirección estratégica, supervisión técnica y toma de decisiones de la Coordinación de Infraestructura y Mantenimiento de la ESAP. Coordina la planeación, ejecución y seguimiento de proyectos de obra, mantenimiento y adecuación de las sedes institucionales.",
     foto:null, usuario:"ivan.cespedes"
   },
   planta:[
-    { nombre:"Jeymmi Andrea Franco Barrera", cargo:"Profesional Universitario", equipo:"Planta", descripcion:"Profesional de planta de la coordinación.", foto:null, usuario:"jeymmi.franco" },
-    { nombre:"Walter David Isaza Avilés", cargo:"Supervisor de Obra", equipo:"Planta", descripcion:"Supervisor técnico de obras en ejecución. Responsable del seguimiento físico en campo.", foto:null, usuario:"walter.isaza" },
-    { nombre:"Eva de la Candelaria Maldonado Comelin", cargo:"Secretaria", equipo:"Planta", descripcion:"Soporte administrativo y secretarial de la coordinación.", foto:null, usuario:"eva.maldonado" }
+    { nombre:"Jeymmi Andrea Franco Barrera", cargo:"Profesional Universitaria — Planta", equipo:"Planta", descripcion:"Profesional de planta adscrita al Grupo de Infraestructura y Mantenimiento. Apoya la gestión administrativa, técnica y documental de los procesos de la coordinación.", foto:null, usuario:"jeymmi.franco" },
+    { nombre:"Walter David Isaza Avilés", cargo:"Supervisor de Obra — Planta", equipo:"Planta", descripcion:"Supervisor técnico de obra adscrito a la planta de la ESAP. Ejerce la supervisión directa de contratos de obra e interventoría, con responsabilidad sobre el seguimiento físico, financiero y administrativo de los proyectos en ejecución.", foto:null, usuario:"walter.isaza" },
+    { nombre:"Eva de la Candelaria Maldonado Comelin", cargo:"Secretaria — Planta", equipo:"Planta", descripcion:"Secretaria de planta de la coordinación. Brinda soporte administrativo, gestiona la correspondencia institucional y garantiza el correcto flujo de comunicaciones internas y externas del grupo.", foto:null, usuario:"eva.maldonado" }
   ],
   asistencia:[
-    { nombre:"Yadira Alayón Almeciga", cargo:"Asistente del Coordinador", descripcion:"Apoyo directo a la gestión del Coordinador del GIM.", foto:null, usuario:"yadira.alayon" }
+    { nombre:"Yadira Alayón Almeciga", cargo:"Asistente del Coordinador", descripcion:"Brinda apoyo directo y permanente al Coordinador del GIM en la gestión administrativa, seguimiento de compromisos y articulación con los diferentes equipos de trabajo. Actúa como enlace entre la coordinación y las áreas internas y externas de la institución.", foto:null, usuario:"yadira.alayon" }
   ],
   asesores:[
-    { nombre:"Francisco Alexander Cobadela Tinoco", cargo:"Asesor Técnico", descripcion:"Asesoría técnica especializada a la coordinación.", foto:null, usuario:"francisco.cobadela" },
-    { nombre:"José Leonel Rodríguez Ortiz", cargo:"Asesor", descripcion:"Asesoría técnica especializada.", foto:null, usuario:"jose.rodriguez" },
-    { nombre:"Mateo David Acosta Castro", cargo:"Apoyo a la Coordinación", descripcion:"Apoyo a la coordinación del GIM.", foto:null, usuario:"mateo.acosta" }
+    { nombre:"Francisco Alexander Cobadela Tinoco", cargo:"Asesor Técnico Contratista", descripcion:"Presta asesoría técnica especializada a la Coordinación en materia de proyectos de infraestructura, elaboración de estudios previos y acompañamiento a los procesos de contratación.", foto:null, usuario:"francisco.cobadela" },
+    { nombre:"José Leonel Rodríguez Ortiz", cargo:"Asesor Contratista", descripcion:"Presta servicios de asesoría a la coordinación en el análisis, revisión y seguimiento de los procesos técnicos y contractuales a cargo del grupo.", foto:null, usuario:"jose.rodriguez" },
+    { nombre:"Mateo David Acosta Castro", cargo:"Apoyo a la Coordinación", descripcion:"Apoya la gestión operativa de la coordinación mediante el seguimiento de actividades, consolidación de información y acompañamiento en las labores técnicas y administrativas del grupo.", foto:null, usuario:"mateo.acosta" }
   ],
   paa:[
-    { nombre:"Camilo Medina", cargo:"Coordinación PAA", descripcion:"Gestión del Plan Anual de Adquisiciones.", foto:null, usuario:"camilo.medina" },
-    { nombre:"Viviana Paola Perdomo Medina", cargo:"Coordinación PAA", descripcion:"Apoyo al Plan Anual de Adquisiciones.", foto:null, usuario:"viviana.perdomo" }
+    { nombre:"Camilo Medina", cargo:"Apoyo PAA — Contratista", descripcion:"Apoya la gestión y actualización del Plan Anual de Adquisiciones del grupo, articulando los requerimientos de contratación con la planeación presupuestal de la coordinación.", foto:null, usuario:"camilo.medina" },
+    { nombre:"Viviana Paola Perdomo Medina", cargo:"Apoyo PAA — Contratista", descripcion:"Colabora en la estructuración, seguimiento y actualización del Plan Anual de Adquisiciones, asegurando el cumplimiento de los procedimientos establecidos para la contratación institucional.", foto:null, usuario:"viviana.perdomo" }
   ],
   equipos:[
     {
       nombre:"Equipo Técnico GIM",
       color:"#0e7490",
       personas:[
-        { nombre:"Andrés Camilo Barrios Barrios", cargo:"Técnico GIM", descripcion:"Seguimiento técnico de proyectos de infraestructura.", foto:null, usuario:"andres.barrios" },
-        { nombre:"Lizeth Juliana Moreno Hernández", cargo:"Técnica GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"lizeth.moreno" },
-        { nombre:"Esteban Camilo Medrano Espinosa", cargo:"Técnico GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"esteban.medrano" },
-        { nombre:"Jhonny Alexander Hernández Medina", cargo:"Técnico GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"jhonny.hernandez" },
-        { nombre:"Marianella Petro Álvarez", cargo:"Técnica GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"marianella.petro" },
-        { nombre:"Manuel Andrés Rodríguez Anzola", cargo:"Técnico GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"manuel.rodriguez" },
-        { nombre:"Yuri Ximena Umaña González", cargo:"Técnica GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"yuri.umana" },
-        { nombre:"John Fredy Lozano Sierra", cargo:"Técnico GIM", descripcion:"Seguimiento técnico de proyectos.", foto:null, usuario:"john.lozano" },
+        { nombre:"Andrés Camilo Barrios Barrios", cargo:"Técnico GIM — Contratista", descripcion:"Realiza el seguimiento técnico, físico y documental de los proyectos de infraestructura asignados, verificando el cumplimiento de especificaciones, cronogramas y obligaciones contractuales.", foto:null, usuario:"andres.barrios" },
+        { nombre:"Lizeth Juliana Moreno Hernández", cargo:"Arquitecta — Especialista en Gerencia Integral de Proyectos", descripcion:"Arquitecta contratista del GIM. Dirige estratégicamente el desarrollo de nuevos proyectos desde la identificación de necesidades en la Sede Central y las sedes territoriales hasta su estructuración técnica, brindando soporte integral a las supervisiones de obra a nivel nacional.", foto:null, usuario:"lizeth.moreno" },
+        { nombre:"Esteban Camilo Medrano Espinosa", cargo:"Técnico GIM — Contratista", descripcion:"Apoya el seguimiento técnico de los contratos de obra, elaborando informes de avance y verificando el cumplimiento de las condiciones pactadas.", foto:null, usuario:"esteban.medrano" },
+        { nombre:"Jhonny Alexander Hernández Medina", cargo:"Ingeniero Civil — Contratista", descripcion:"Brinda acompañamiento profesional como ingeniero civil en los procesos de ejecución, control de calidad y gestión de recursos para las obras de infraestructura de la ESAP a nivel nacional.", foto:null, usuario:"jhonny.hernandez" },
+        { nombre:"Aleida Maritza Aceros Tauta", cargo:"Arquitecta — Especialista en Dirección y Gerencia de Proyectos", descripcion:"Arquitecta contratista encargada del apoyo a la supervisión de obras contratadas y del seguimiento técnico, administrativo y documental de los proyectos, así como del apoyo en la atención y consolidación de información requerida por los entes de control en los procesos a cargo del Grupo.", foto:null, usuario:"aleida.aceros" },
+        { nombre:"Marianella Petro Álvarez", cargo:"Técnica GIM — Contratista", descripcion:"Presta apoyo técnico en el seguimiento de proyectos de infraestructura, participando en visitas de obra, revisión de informes y elaboración de actas.", foto:null, usuario:"marianella.petro" },
+        { nombre:"Manuel Andrés Rodríguez Anzola", cargo:"Técnico GIM — Contratista", descripcion:"Apoya la gestión técnica de la coordinación mediante el seguimiento de proyectos, elaboración de documentos técnicos y verificación del cumplimiento contractual.", foto:null, usuario:"manuel.rodriguez" },
+        { nombre:"Yuri Ximena Umaña González", cargo:"Ingeniera Civil — Contratista", descripcion:"Profesional del Grupo de Infraestructura y Mantenimiento de la ESAP, integrante del equipo técnico encargado de supervisar y contratar los proyectos de construcción, mantenimiento, adecuación y dotación de las sedes ESAP a nivel nacional.", foto:null, usuario:"yuri.umana" },
+        { nombre:"John Fredy Lozano Sierra", cargo:"Técnico GIM — Contratista", descripcion:"Presta servicios de apoyo técnico en el seguimiento y control de los proyectos de infraestructura de la coordinación.", foto:null, usuario:"john.lozano" }
       ]
     },
     {
       nombre:"Equipo Jurídico",
       color:"#7c3aed",
       personas:[
-        { nombre:"Saúl Orlando Jerez Ayala", cargo:"Apoyo Jurídico", descripcion:"Asesoría y gestión jurídica de los procesos contractuales.", foto:null, usuario:"saul.jerez" },
-        { nombre:"Pío Camilo Ayure Flórez", cargo:"Apoyo Jurídico", descripcion:"Asesoría jurídica de procesos contractuales.", foto:null, usuario:"pio.ayure" },
-        { nombre:"Valentina Bernal Triana", cargo:"Apoyo Jurídico", descripcion:"Apoyo jurídico a los procesos contractuales del GIM.", foto:null, usuario:"valentina.bernal" },
-        { nombre:"Alberto Serna Arellano", cargo:"Apoyo Jurídico", descripcion:"Apoyo jurídico a los procesos contractuales.", foto:null, usuario:"alberto.serna" }
+        { nombre:"Saúl Orlando Jerez Ayala", cargo:"Apoyo Jurídico — Contratista", descripcion:"Presta servicios de apoyo jurídico en la estructuración, revisión y seguimiento de los procesos de contratación del GIM, asegurando el cumplimiento del marco normativo aplicable.", foto:null, usuario:"saul.jerez" },
+        { nombre:"Pío Camilo Ayure Flórez", cargo:"Apoyo Jurídico — Contratista", descripcion:"Apoya la gestión jurídica de los procesos contractuales, participando en la elaboración de estudios previos, minutas y demás documentos requeridos en las etapas precontractual y contractual.", foto:null, usuario:"pio.ayure" },
+        { nombre:"Valentina Bernal Triana", cargo:"Apoyo Jurídico — Contratista", descripcion:"Presta servicios de apoyo jurídico al GIM, colaborando en la revisión documental, seguimiento de procesos contractuales y atención de requerimientos de orden legal.", foto:null, usuario:"valentina.bernal" },
+        { nombre:"Alberto Serna Arellano", cargo:"Apoyo Jurídico — Contratista", descripcion:"Brinda apoyo jurídico especializado a la coordinación en materia contractual, contribuyendo a la correcta ejecución de los procesos de selección y contratación.", foto:null, usuario:"alberto.serna" },
+        { nombre:"Fátima (pendiente datos)", cargo:"Apoyo Jurídico — Contratista", descripcion:"Presta servicios de apoyo jurídico al Grupo de Infraestructura y Mantenimiento, colaborando en la revisión y seguimiento de los procesos contractuales.", foto:null, usuario:"fatima.juridico" }
       ]
     },
     {
       nombre:"Equipo Financiero",
       color:"#15803d",
       personas:[
-        { nombre:"Viviana Paola Perdomo Medina", cargo:"Apoyo Financiero", descripcion:"Gestión financiera y presupuestal de los proyectos.", foto:null, usuario:"viviana.perdomo" },
-        { nombre:"Jhon Camilo Medina Garzón", cargo:"Apoyo Financiero", descripcion:"Gestión financiera y presupuestal.", foto:null, usuario:"jhon.medina" }
+        { nombre:"Viviana Paola Perdomo Medina", cargo:"Ingeniera Industrial — Especialista en Marketing Digital", descripcion:"Ingeniera Industrial con especialización y maestría en Marketing Digital. Apoya la gestión financiera del GIM contribuyendo al seguimiento y control de los servicios de funcionamiento. Profesional comprometida, organizada y orientada a resultados.", foto:null, usuario:"viviana.perdomo" },
+        { nombre:"Jhon Camilo Medina Garzón", cargo:"Administrador de Empresas — Contratista", descripcion:"Administrador de Empresas y estudiante de Derecho. Se desempeña en la estructuración financiera y la planeación presupuestal del GIM, contribuyendo a la gestión eficiente de los recursos de inversión y al fortalecimiento de los proyectos estratégicos de la entidad a nivel nacional.", foto:null, usuario:"jhon.medina" }
       ]
     },
     {
       nombre:"Tecnología y Datos",
       color:"#b45309",
       personas:[
-        { nombre:"Duberly Karime Carvajal Pico", cargo:"Tecnología y Datos", descripcion:"Administración de sistemas de información, seguridad de datos e innovación tecnológica del GIM.", foto:null, usuario:"duberly.carvajal" }
+        { nombre:"Duberly Karime Carvajal Pico", cargo:"Líder de Tecnología y Datos — Contratista", descripcion:"Responsable del diseño, desarrollo, administración y mantenimiento del ecosistema digital del GIM. Gestiona los sistemas de información, garantiza la seguridad de los datos institucionales e implementa soluciones tecnológicas para la optimización de los procesos de la coordinación.", foto:null, usuario:"duberly.carvajal" }
       ]
     },
     {
       nombre:"Calidad y Archivo",
       color:"#475569",
       personas:[
-        { nombre:"Diego Alejandro Roa Galindo", cargo:"Calidad", descripcion:"Gestión de calidad y procesos institucionales.", foto:null, usuario:"diego.roa" },
-        { nombre:"Heidy Daniela Bejarano Urrego", cargo:"Archivo", descripcion:"Gestión documental y archivo de la coordinación.", foto:null, usuario:"heidy.bejarano" }
+        { nombre:"Diego Alejandro Roa Galindo", cargo:"Gestión de Calidad — Contratista", descripcion:"Apoya los procesos de gestión de calidad del GIM, asegurando el cumplimiento de los estándares institucionales y contribuyendo a la mejora continua de los procedimientos internos.", foto:null, usuario:"diego.roa" },
+        { nombre:"Heidy Daniela Bejarano Urrego", cargo:"Gestión Documental y Archivo — Contratista", descripcion:"Responsable de la organización, custodia y gestión documental de la coordinación, garantizando la correcta administración del archivo físico y digital conforme a la normativa vigente.", foto:null, usuario:"heidy.bejarano" }
       ]
     },
     {
       nombre:"UMI — Mantenimiento",
       color:"#0f6e56",
       personas:[
-        { nombre:"Jimmy Nicolás Restrepo Marín", cargo:"Líder UMI", descripcion:"Coordinación y liderazgo del equipo de mantenimiento de sedes.", foto:null, usuario:"jimmy.restrepo" },
-        { nombre:"Yimmy Orlando Riaño Ruiz", cargo:"Técnico UMI", descripcion:"Mantenimiento de sedes ESAP.", foto:null, usuario:"yimmy.riano" },
-        { nombre:"Juan Carlos González Londoño", cargo:"Técnico UMI", descripcion:"Mantenimiento de sedes ESAP.", foto:null, usuario:"juan.gonzalez" },
-        { nombre:"Carlos Andrés Arias", cargo:"Técnico UMI", descripcion:"Mantenimiento de sedes ESAP.", foto:null, usuario:"carlos.arias" },
-        { nombre:"Fabián Alberto Ríos Flórez", cargo:"Técnico UMI", descripcion:"Mantenimiento de sedes ESAP.", foto:null, usuario:"fabian.rios" }
+        { nombre:"Jimmy Nicolás Restrepo Marín", cargo:"Líder UMI — Contratista", descripcion:"Lidera el equipo de mantenimiento de sedes de la ESAP, coordinando las actividades de mantenimiento preventivo y correctivo, y asegurando las condiciones óptimas de operación de la infraestructura institucional.", foto:null, usuario:"jimmy.restrepo" },
+        { nombre:"Yimmy Orlando Riaño Ruiz", cargo:"Técnico UMI — Contratista", descripcion:"Ejecuta actividades de mantenimiento preventivo y correctivo en las instalaciones de las sedes ESAP, garantizando el buen estado de la infraestructura física.", foto:null, usuario:"yimmy.riano" },
+        { nombre:"Juan Carlos González Londoño", cargo:"Técnico UMI — Contratista", descripcion:"Realiza labores técnicas de mantenimiento en las sedes institucionales, apoyando el funcionamiento adecuado de sistemas e instalaciones.", foto:null, usuario:"juan.gonzalez" },
+        { nombre:"Carlos Andrés Arias", cargo:"Técnico UMI — Contratista", descripcion:"Presta servicios de mantenimiento técnico en las instalaciones de las sedes de la ESAP, contribuyendo a la conservación y operatividad de la infraestructura.", foto:null, usuario:"carlos.arias" },
+        { nombre:"Fabián Alberto Ríos Flórez", cargo:"Técnico UMI — Contratista", descripcion:"Apoya las actividades de mantenimiento de la infraestructura institucional, ejecutando labores técnicas orientadas a preservar las condiciones físicas de las sedes.", foto:null, usuario:"fabian.rios" }
       ]
-    },
+    }
   ]
 };
 
@@ -566,7 +583,7 @@ function renderHerramientas(mc){
             <span class="tc-badge tc-activo">✓ Activo</span>
             <span class="tc-accion">Abrir →</span>
           </div>
-          ${isAdmin?`<div class="tc-admin"><button class="btn btn-sm" style="background:var(--card);font-size:11px;" onclick="event.preventDefault();event.stopPropagation();modalEditTool('${t.id}')">✏️</button></div>`:''}
+          ${isAdmin?'<div class="tc-admin"><button class="btn btn-sm" style="background:var(--card);font-size:11px;" onclick="event.preventDefault();event.stopPropagation();modalEditTool(\''+t.id+'\');">Editar</button></div>':''}
         </a>`;
       } else if(isAdmin){
         html+=`<div class="tool-card" style="border-style:dashed;cursor:default;opacity:.85;">
@@ -607,82 +624,66 @@ async function modalEditTool(toolId){
   const enConstruccion = current?.estado !== 'activo';
   const REPO_URL = 'https://github.com/esapinfraestructura-crypto/Portal-GIM';
 
-  document.getElementById('modal').innerHTML=`
-    <div class="modal-head">
-      <h3>${isNew?'Agregar nueva herramienta':enConstruccion?'Activar herramienta: '+esc(current?.nombre):'Editar: '+esc(current?.nombre)}</h3>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      ${!isNew && enConstruccion ? `
-      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
-        <div style="font-weight:700;color:#15803d;margin-bottom:10px;">📋 Pasos para activar esta herramienta</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
-            <span style="width:22px;height:22px;border-radius:50%;background:#15803d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">1</span>
-            <span>Descarga el archivo HTML terminado de esta conversación de Claude</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
-            <span style="width:22px;height:22px;border-radius:50%;background:#15803d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">2</span>
-            <div>Súbelo al repositorio GitHub del portal →
-              <a href="${REPO_URL}/upload/main" target="_blank" class="btn btn-sm btn-primary" style="margin-left:8px;font-size:11.5px;">📤 Abrir GitHub para subir</a>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
-            <span style="width:22px;height:22px;border-radius:50%;background:#15803d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">3</span>
-            <span>Confirma el nombre del archivo aquí abajo y cambia el estado a <strong>Activo</strong></span>
-          </div>
-        </div>
-      </div>` : ''}
+  const inp=(id,val,ph,xst)=>'<input id="'+id+'" value="'+esc(val||'')+'" placeholder="'+(ph||'')+'" '+(xst?'style="'+xst+'"':'')+' >';
+  const ta=(id,val)=>'<textarea id="'+id+'">'+esc(val||'')+'</textarea>';
+  const lbl=(t,c)=>'<div class="mf"><span>'+t+'</span>'+c+'</div>';
 
-      ${!isFixed?`<div class="field"><label>Nombre</label><input id="tNom" value="${esc(current?.nombre||'')}" placeholder="Ej: Seguimiento de contratos"></div>`:''}
-      ${!isFixed?`<div class="field"><label>Ícono (emoji)</label><input id="tIco" value="${esc(current?.icono||'🔧')}" style="width:60px;font-size:20px;"></div>`:''}
-      ${!isFixed?`<div class="field"><label>Descripción</label><textarea id="tDesc">${esc(current?.desc||'')}</textarea></div>`:''}
+  let _tHtml='<div class="modal-head">'
+    +'<h3>'+(isNew?'Nueva herramienta':enConstruccion?'Activar: '+esc(current?.nombre||''):'Editar: '+esc(current?.nombre||''))+'</h3>'
+    +'<button class="modal-close" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body">';
 
-      <div class="field">
-        <label>Nombre del archivo en GitHub (exacto, con .html)</label>
-        <input id="tUrl" value="${esc(current?.url||'')}" placeholder="nombre-herramienta.html">
-        <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">
-          Debe coincidir exactamente con el nombre del archivo que subiste al repositorio.
-          ${current?.url?`<br>URL completa: <code style="font-size:10.5px;">https://esapinfraestructura-crypto.github.io/Portal-GIM/${current?.url}</code>`:''}
-        </div>
-      </div>
+  if(!isNew&&enConstruccion){
+    _tHtml+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13px;">'
+      +'<div style="font-weight:700;color:#15803d;margin-bottom:8px;">Pasos para activar</div>'
+      +'<div style="color:#166534;line-height:1.8;">1. Descarga el archivo HTML y sübelo al repositorio GitHub<br>'
+      +'2. <a href="'+REPO_URL+'/upload/main" target="_blank" style="color:#15803d;font-weight:700;">Clic aquí para abrir GitHub y subir</a><br>'
+      +'3. Confirma el nombre del archivo abajo y cambia el estado a Activo</div></div>';
+  }
 
-      ${!isFixed?`<div class="field"><label>Categoría</label><input id="tCat" value="${esc(current?.categoria||'Gestión')}"></div>`:''}
-
-      <div class="field">
-        <label>Estado</label>
-        <select id="tEst">
-          <option value="activo" ${current?.estado==='activo'?'selected':''}>✅ Activo — el archivo está subido y funciona</option>
-          <option value="construccion" ${current?.estado==='construccion'||!current?'selected':''}>🔨 En construcción — se está desarrollando</option>
-          <option value="proximamente" ${current?.estado==='proximamente'?'selected':''}>🕐 Próximamente — planeada pero no iniciada</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" id="tSave">
-        ${enConstruccion&&!isNew?'✅ Guardar y activar':'Guardar'}
-      </button>
-    </div>`;
+  _tHtml+=lbl('Nombre de la herramienta', inp('tNom', current?.nombre, 'Ej: Seguimiento de contratos'));
+  _tHtml+='<div style="display:grid;grid-template-columns:90px 1fr;gap:14px;">'
+    +lbl('Ícono', inp('tIco', current?.icono||'🔧','','font-size:24px;text-align:center;width:100%;'))
+    +lbl('Categoría', inp('tCat', current?.categoria||'Gestión'))
+    +'</div>';
+  _tHtml+=lbl('Descripción', ta('tDesc', current?.desc));
+  _tHtml+='<div class="mf"><span>Archivo en GitHub (.html)</span>'
+    +inp('tUrl', current?.url, 'nombre-herramienta.html', 'font-family:monospace;')
+    +'<div style="font-size:11px;color:#64748b;margin-top:6px;">Debe coincidir exactamente con el archivo en el repositorio.'
+    +(current?.url?' &nbsp;<a href="https://esapinfraestructura-crypto.github.io/Portal-GIM/'+esc(current?.url)+'" target="_blank" style="color:#0284c7;">Ver en vivo</a>':'')
+    +'</div></div>';
+  _tHtml+='<div class="mf"><span>Estado de la herramienta</span>'
+    +'<select id="tEst">'
+    +'<option value="activo" '+(current?.estado==='activo'?'selected':'')+'>✅ Activo — funciona y está visible</option>'
+    +'<option value="construccion" '+(current?.estado==='construccion'||!current?'selected':'')+'>🔨 En construcción — en desarrollo</option>'
+    +'<option value="proximamente" '+(current?.estado==='proximamente'?'selected':'')+'>🕐 Próximamente — planeada</option>'
+    +'</select></div>';
+  _tHtml+='</div><div class="modal-foot" style="padding:20px 28px;">'
+    +(toolId&&!current?.fijo?'<button class="btn btn-danger btn-sm" id="tDel">Eliminar</button>':'<span></span>')
+    +'<div style="display:flex;gap:8px;">'
+    +'<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn btn-primary" id="tSave">'+(enConstruccion&&!isNew?'Activar herramienta':'Guardar cambios')+'</button>'
+    +'</div></div>';
+  document.getElementById('modal').innerHTML=_tHtml;
   openModal();
+  if(document.getElementById('tDel')) document.getElementById('tDel').addEventListener('click',()=>{ if(confirm('¿Eliminar esta herramienta?')){eliminarTool(toolId);closeModal();} });
   document.getElementById('tSave').addEventListener('click',async()=>{
     const estado=document.getElementById('tEst').value;
     const url=document.getElementById('tUrl').value.trim();
-    if(isFixed){
-      const existing=ST.tools.findIndex(t=>t.id===toolId);
-      const override={...current, id:toolId, url, estado, fijo:true};
-      if(existing>=0) ST.tools[existing]=override; else ST.tools.push(override);
-    } else {
-      const nombre=document.getElementById('tNom')?.value.trim();
-      if(!nombre){ toast('El nombre es obligatorio'); return; }
-      const entry={ id:toolId||uid(), nombre,
-        icono:document.getElementById('tIco')?.value||'🔧',
-        desc:document.getElementById('tDesc')?.value.trim()||'',
-        url, categoria:document.getElementById('tCat')?.value.trim()||'Gestión',
-        estado, fijo:false };
-      if(toolId){ const idx=ST.tools.findIndex(t=>t.id===toolId); if(idx>=0) ST.tools[idx]=entry; else ST.tools.push(entry); }
-      else ST.tools.push(entry);
-    }
+    const nombre=document.getElementById('tNom')?.value?.trim()||current?.nombre||'';
+    if(!nombre){ toast('El nombre es obligatorio'); return; }
+    const entry={
+      id:toolId||uid(),
+      nombre,
+      icono:document.getElementById('tIco')?.value||current?.icono||'🔧',
+      desc:document.getElementById('tDesc')?.value?.trim()||current?.desc||'',
+      url,
+      categoria:document.getElementById('tCat')?.value?.trim()||current?.categoria||'Gestión',
+      estado,
+      fijo:current?.fijo||false
+    };
+    const idx=ST.tools.findIndex(t=>t.id===entry.id);
+    if(idx>=0) ST.tools[idx]=entry; else ST.tools.push(entry);
     await savePortalData(); closeModal(); setView('herramientas');
     toast(estado==='activo'?'✅ ¡Herramienta activada y visible para el equipo!':'Estado guardado ✓');
   });
@@ -800,12 +801,7 @@ async function renderDashboard(mc){
       <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:14px;">Por fase</div>
       <div style="position:relative;height:180px;"><canvas id="dChartFase"></canvas></div>
       <div style="margin-top:12px;">
-        ${Object.entries(FASE_MAP).filter(([k])=>faseCount[k]>0).slice(0,5).map(([k,v])=>`
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:11.5px;">
-          <div style="width:8px;height:8px;border-radius:2px;background:${v.color};flex-shrink:0;"></div>
-          <span style="flex:1;color:var(--muted);">${v.label}</span>
-          <strong>${faseCount[k]}</strong>
-        </div>`).join('')}
+        ${(()=>{return Object.entries(FASE_MAP).filter(([k])=>faseCount[k]>0).slice(0,5).map(([k,v])=>'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;">'+v.label+'</span><span style="font-size:12px;font-weight:700;color:'+v.color+';">'+faseCount[k]+'</span></div>').join('');})()}
       </div>
     </div>
 
@@ -821,11 +817,7 @@ async function renderDashboard(mc){
       <div style="position:relative;height:130px;"><canvas id="dChartSede"></canvas></div>
       <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
         <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Herramientas del portal</div>
-        ${allTools().map(t=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:12px;">
-          <span>${t.icono} ${esc(t.nombre)}</span>
-          <span style="font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;${t.estado==='activo'?'background:#d1fae5;color:#065f46;':'background:#fef3c7;color:#92400e;'}">${t.estado==='activo'?'Activo':'Pendiente'}</span>
-        </div>`).join('')}
+        ${allTools().map(t=>'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><span style="font-size:13px;">'+esc(t.nombre)+'</span><span style="font-size:11px;color:var(--muted);">'+esc(t.estado||'')+'</span></div>').join('')}
       </div>
     </div>
   </div>
@@ -1043,11 +1035,7 @@ function exportDashReport(TD,P,totalCdp,adj,ejec,fin,faseCount,avg){
   <div class="section">
     <h2>🚦 Estado por fase</h2>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
-      ${Object.entries(FASE_MAP_).map(([k,l])=>{const n=faseCount[k]||0;if(!n)return '';return `
-      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center;">
-        <div style="font-size:20px;font-weight:900;color:#0f1f3d;">${n}</div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px;">${l}</div>
-      </div>`;}).join('')}
+      ${(()=>{return Object.entries(FASE_MAP_).map(([k,l])=>{const n=faseCount[k]||0;if(!n)return '';return '<div style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12px;">'+l+'</span><strong style="font-size:13px;">'+n+'</strong></div>';}).join('');})()}).join('')}
     </div>
   </div>
 
@@ -1118,24 +1106,35 @@ async function resetOrganigrama(){
 }
 
 function personCard(p, tipo, borderColor, idx, total, equipoIdx){
-  const foto=p.foto?`<img class="p-foto" src="${p.foto}" alt="${esc(p.nombre)}">`:`<div class="p-foto-ph">👤</div>`;
+  // Generate colored initials avatar
+  const initials=(p.nombre||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+  const foto=p.foto
+    ?'<img class="p-foto" src="'+p.foto+'" alt="'+esc(p.nombre)+'" style="width:56px;height:56px;border-radius:12px;object-fit:cover;flex-shrink:0;">'
+    :'<div style="width:56px;height:56px;border-radius:12px;background:'+(borderColor||'#0f1f3d')+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px;flex-shrink:0;letter-spacing:-.5px;">'+initials+'</div>';
   const ref=encodeURIComponent(JSON.stringify({tipo:tipo, idx:idx, equipoIdx:equipoIdx!==undefined?equipoIdx:-1, usuario:p.usuario||''}));
-  const adminBtns=SES.rol==='admin'?`
-    <div style="display:none;position:absolute;top:6px;right:6px;gap:3px;flex-direction:column;" class="p-admin-btns">
-      ${idx>0?`<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();moverPersona('${ref}',-1)">↑</button>`:'<span style="height:24px;display:block;"></span>'}
-      ${(total!==undefined&&idx<total-1)?`<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();moverPersona('${ref}',1)">↓</button>`:'<span style="height:24px;display:block;"></span>'}
-      <button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();editPersona('${ref}')">✏️</button>
-      ${tipo!=='coord'?`<button class="btn btn-sm btn-danger" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();eliminarPersona('${ref}')">🗑️</button>`:''}
-    </div>`:'';
-  return `<div class="person-card ${tipo}" style="border-top-color:${borderColor||'var(--cyan)'};position:relative;"
-    onmouseenter="this.querySelector('.p-admin-btns')&&(this.querySelector('.p-admin-btns').style.display='flex')"
-    onmouseleave="this.querySelector('.p-admin-btns')&&(this.querySelector('.p-admin-btns').style.display='none')">
-    ${adminBtns}
-    ${foto}
-    <div class="p-name">${esc(p.nombre)}</div>
-    <div class="p-cargo">${esc(p.cargo||'')}</div>
-    ${p.descripcion?`<div class="p-desc">${esc(p.descripcion)}</div>`:''}
-  </div>`;
+  let adminBtns='';
+  if(SES.rol==='admin'){
+    const safeRef=ref.replace(/'/g,'&apos;');
+    adminBtns='<div style="display:none;position:absolute;top:6px;right:6px;gap:3px;flex-direction:column;" class="p-admin-btns">'
+      +(idx>0?'<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();moverPersonaRef(this,-1)" data-ref="'+safeRef+'">↑</button>':'<span style="height:24px;display:block;"></span>')
+      +((total!==undefined&&idx<total-1)?'<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();moverPersonaRef(this,1)" data-ref="'+safeRef+'">↓</button>':'<span style="height:24px;display:block;"></span>')
+      +'<button class="btn btn-sm" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();editPersonaRef(this)" data-ref="'+safeRef+'">✏️</button>'
+      +(tipo!=='coord'?'<button class="btn btn-sm btn-danger" style="padding:2px 6px;font-size:11px;" onclick="event.stopPropagation();eliminarPersonaRef(this)" data-ref="'+safeRef+'">🗑️</button>':'')
+      +'</div>';
+  }
+  return '<div style="background:var(--card);border-radius:14px;border:1px solid var(--border);border-top:3px solid '+(borderColor||'#0f1f3d')+';padding:16px;position:relative;display:flex;flex-direction:column;gap:10px;transition:box-shadow .2s;box-shadow:0 2px 8px rgba(0,0,0,.06);"'
+    +' onmouseenter="this.style.boxShadow=\'0 6px 24px rgba(0,0,0,.13)\';var b=this.querySelector(\'.p-admin-btns\');if(b)b.style.display=\'flex\';"'
+    +' onmouseleave="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.06)\';var b=this.querySelector(\'.p-admin-btns\');if(b)b.style.display=\'none\';">'
+    +adminBtns
+    +'<div style="display:flex;align-items:center;gap:12px;">'
+      +foto
+      +'<div style="min-width:0;">'
+        +'<div style="font-weight:800;font-size:13.5px;color:var(--ink);line-height:1.3;margin-bottom:3px;">'+esc(p.nombre)+'</div>'
+        +'<div style="font-size:11.5px;font-weight:600;color:'+(borderColor||'#0f1f3d')+';line-height:1.3;">'+esc(p.cargo||'')+'</div>'
+      +'</div>'
+    +'</div>'
+    +(p.descripcion?'<div style="font-size:12px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:9px;">'+esc(p.descripcion)+'</div>':'')
+    +'</div>';
 }
 
 function renderOrganigrama(mc){
@@ -1178,10 +1177,11 @@ function renderOrganigrama(mc){
   }
 
   // PAA — Camilo Medina, Viviana Perdomo
-  if((org.paa||[]).length > 0){
+  if((org.paa||[]).length > 0 || isAdmin){
     html+=`<div class="section-lbl" style="text-align:center;">Coordinación PAA</div>`;
-    html+=`<div class="org-planta" style="max-width:600px;margin:0 auto 24px;">`;
+    html+=`<div class="org-planta" style="max-width:700px;margin:0 auto 24px;">`;
     (org.paa||[]).forEach((p,i,arr)=>{ html+=personCard(p,'paa','#7c3aed',i,arr.length); });
+    if(isAdmin) html+=`<button class="btn btn-sm" onclick="modalAgregarPersona('paa')" style="border-style:dashed;color:#7c3aed;border-color:#7c3aed;">+ Agregar PAA</button>`;
     html+=`</div>`;
   }
 
@@ -1192,7 +1192,7 @@ function renderOrganigrama(mc){
     html+=`<div class="org-equipo">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <div class="org-equipo-title" style="background:${eq.color}1a;color:${eq.color};margin-bottom:0;">${esc(eq.nombre)} (${eq.personas.length})</div>
-        ${isAdmin?`<button class="btn btn-sm" onclick="modalAgregarPersona('equipo',${ei})" style="border-style:dashed;color:${eq.color};border-color:${eq.color};">+ Agregar</button>`:''}
+        ${isAdmin?'<button class="btn btn-sm" onclick="modalAgregarPersona(\'equipo\','+ei+')" style="border-style:dashed;color:'+eq.color+';border-color:'+eq.color+';">+ Agregar</button>':''}
       </div>
       <div class="org-equipo-grid">`;
     eq.personas.forEach((p,i,arr)=>{ html+=personCard(p,'contratista',eq.color,i,arr.length,ei); });
@@ -1210,7 +1210,7 @@ function renderOrganigrama(mc){
 }
 
 function modalAgregarPersona(nivel, equipoIdx){
-  const etiqueta = nivel==='planta'?'Personal de planta':nivel==='asistencia'?'Asistencia':
+  const etiqueta = nivel==='planta'?'Personal de planta':nivel==='asistencia'?'Asistencia a la Coordinación':nivel==='asesores'?'Asesores':nivel==='paa'?'Coordinación PAA':
     (getOrg().equipos||[])[equipoIdx]?.nombre||'Equipo';
   document.getElementById('modal').innerHTML=`
     <div class="modal-head"><h3>Agregar persona — ${esc(etiqueta)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
@@ -1233,6 +1233,7 @@ function modalAgregarPersona(nivel, equipoIdx){
         usuario:document.getElementById('apUser').value.trim(), foto:fotoData||null };
       const org=getOrg();
       if(nivel==='planta'){ if(!org.planta) org.planta=[]; org.planta.push(persona); }
+      else if(nivel==='paa'){ if(!org.paa) org.paa=[]; org.paa.push(persona); }
       else if(nivel==='asistencia'){ if(!org.asistencia) org.asistencia=[]; org.asistencia.push(persona); }
       else if(nivel==='equipo'){ if(org.equipos&&org.equipos[equipoIdx]){ org.equipos[equipoIdx].personas.push(persona); } }
       ST.orgData=org;
@@ -1265,6 +1266,9 @@ function modalAgregarEquipo(){
   });
 }
 
+function moverPersonaRef(btn,dir){moverPersona(btn.dataset.ref,dir);}
+function editPersonaRef(btn){editPersona(btn.dataset.ref);}
+function eliminarPersonaRef(btn){eliminarPersona(btn.dataset.ref);}
 function moverPersona(encoded, dir){
   let ref;
   try{ ref=JSON.parse(decodeURIComponent(encoded)); }catch(e){ return; }
@@ -1272,6 +1276,7 @@ function moverPersona(encoded, dir){
   const i=Number(ref.idx);
   let arr=null;
   if(ref.tipo==='planta')       arr=org.planta;
+  else if(ref.tipo==='paa')     arr=org.paa;
   else if(ref.tipo==='asistencia') arr=org.asistencia;
   else if(ref.tipo==='asesores')   arr=org.asesores;
   else if(ref.tipo==='contratista'){
@@ -1311,37 +1316,65 @@ function editPersona(encoded){
   }
   if(arr) persona=arr[i];
   if(!persona){ toast('No se encontró la persona'); return; }
-  document.getElementById('modal').innerHTML=`
-    <div class="modal-head"><h3>Editar: ${esc(persona.nombre||'')}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div class="modal-body">
-      <div class="field"><label>Nombre completo</label><input id="eNom" value="${esc(persona.nombre||'')}"></div>
-      <div class="field"><label>Cargo</label><input id="eCargo" value="${esc(persona.cargo||'')}"></div>
-      <div class="field"><label>Descripción breve</label><textarea id="eDesc">${esc(persona.descripcion||'')}</textarea></div>
-      <div class="field"><label>Foto (JPG/PNG — máx 2 MB)</label><input type="file" id="eFoto" accept=".jpg,.jpeg,.png,.webp"></div>
-      ${persona.foto?'<div style="margin-top:8px;display:flex;align-items:center;gap:10px;"><img src="'+persona.foto+'" style="width:60px;height:60px;border-radius:50%;object-fit:cover;"><button class="btn btn-sm btn-danger" id="eQuitarFoto">Quitar foto</button></div>':''}
-    </div>
-    <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="eSave">Guardar</button></div>`;
+  const initials2=(persona.nombre||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+  const fotoPreviewHtml=persona.foto
+    ?'<img id="currentFotoImg" src="'+persona.foto+'" style="width:90px;height:90px;border-radius:14px;object-fit:cover;border:3px solid #e2e8f0;">'
+    :'<div id="currentFotoImg" style="width:90px;height:90px;border-radius:14px;background:#0f1f3d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;">'+initials2+'</div>';
+
+  const fStyle2='width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;color:#0f172a;background:#f8fafc;font-family:inherit;box-sizing:border-box;';
+
+  document.getElementById('modal').innerHTML=''
+    +'<div class="modal-head"><h3>Editar perfil</h3><button class="modal-close" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body">'
+
+    // Foto + nombre en header visual
+    +'<div style="display:flex;align-items:center;gap:16px;padding:16px;background:#f8fafc;border-radius:12px;margin-bottom:20px;border:1px solid #e2e8f0;">'
+      +'<div id="fotoWrap" style="position:relative;flex-shrink:0;">'
+        +fotoPreviewHtml
+        +'<label for="eFoto" style="position:absolute;bottom:-6px;right:-6px;width:28px;height:28px;border-radius:50%;background:#0f1f3d;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;border:2px solid #fff;" title="Cambiar foto">📷</label>'
+        +'<input type="file" id="eFoto" accept=".jpg,.jpeg,.png,.webp" style="display:none;">'
+      +'</div>'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:16px;font-weight:800;color:#0f172a;" id="previewNombre">'+esc(persona.nombre||'')+'</div>'
+        +'<div style="font-size:13px;color:#64748b;margin-top:3px;" id="previewCargo">'+esc(persona.cargo||'')+'</div>'
+        +(persona.foto?'<button id="eQuitarFoto" class="btn btn-sm" style="margin-top:8px;color:#dc2626;border-color:#dc2626;font-size:11px;padding:3px 10px;">Quitar foto</button>':'')
+      +'</div>'
+    +'</div>'
+
+    +'<div class="mf"><span>Nombre completo</span><input id="eNom" value="'+esc(persona.nombre||'')+'" style="'+fStyle2+'"></div>'
+    +'<div class="mf"><span>Cargo / Título profesional</span><input id="eCargo" value="'+esc(persona.cargo||'')+'" style="'+fStyle2+'"></div>'
+    +'<div class="mf"><span>Descripción profesional</span><textarea id="eDesc" style="'+fStyle2+'min-height:100px;resize:vertical;">'+esc(persona.descripcion||'')+'</textarea></div>'
+    +'</div>'
+    +'<div class="modal-foot">'
+      +'<span style="font-size:11px;color:#94a3b8;">La foto se guarda en el portal</span>'
+      +'<div style="display:flex;gap:8px;">'
+        +'<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+        +'<button class="btn btn-primary" id="eSave">💾 Guardar perfil</button>'
+      +'</div>'
+    +'</div>';
   openModal();
 
-  // Vista previa inmediata al seleccionar foto
+  // Live preview + nombre/cargo update
   document.getElementById('eFoto')?.addEventListener('change', function(){
     const file=this.files[0];
     if(!file) return;
     if(file.size>3*1024*1024){ toast('La imagen supera 3 MB — usa una más pequeña'); this.value=''; return; }
     const r=new FileReader();
     r.onload=function(e){
-      let prev=document.getElementById('fotoPreview');
-      if(!prev){
-        prev=document.createElement('div');
-        prev.id='fotoPreview';
-        prev.style.cssText='margin-top:10px;display:flex;align-items:center;gap:10px;padding:8px;background:#f0fdf4;border-radius:8px;';
-        document.getElementById('eFoto').parentNode.appendChild(prev);
+      const wrap=document.getElementById('currentFotoImg');
+      if(wrap){
+        const img=document.createElement('img');
+        img.src=e.target.result;
+        img.style.cssText='width:90px;height:90px;border-radius:14px;object-fit:cover;border:3px solid #059669;';
+        img.id='currentFotoImg';
+        wrap.replaceWith(img);
       }
-      prev.innerHTML='<img src="'+e.target.result+'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #15803d;">'
-        +'<span style="font-size:12.5px;color:#15803d;font-weight:600;">✓ Foto lista — haz clic en Guardar</span>';
     };
     r.readAsDataURL(file);
   });
+  // Live name/cargo preview
+  document.getElementById('eNom')?.addEventListener('input',function(){ const p=document.getElementById('previewNombre');if(p)p.textContent=this.value; });
+  document.getElementById('eCargo')?.addEventListener('input',function(){ const p=document.getElementById('previewCargo');if(p)p.textContent=this.value; });
 
   document.getElementById('eQuitarFoto')?.addEventListener('click',()=>{
     persona.foto=null; ST.orgData=org;
@@ -1408,11 +1441,7 @@ function renderAdmin(mc){
         <div class="user-meta">${esc(u.usuario)} · Cédula: ${esc(u.cedula||'—')} · Contraseña actual: <strong>${esc(u.contrasena)}</strong></div>
       </div>
       <span class="rol-badge ${rolInfo.badge}">${rolInfo.label}</span>
-      ${!isSA?`
-        <button class="btn btn-sm" onclick="toggleAcceso('${esc(u.usuario)}')" title="${activo?'Desactivar acceso':'Activar acceso'}">${activo?'🔒 Desactivar':'🔓 Activar'}</button>
-        <button class="btn btn-sm" onclick="editUsuario('${esc(u.usuario)}')" title="Editar">✏️</button>
-        <button class="btn btn-sm" onclick="resetPwd('${esc(u.usuario)}')" title="Restablecer a cédula">↺ Cédula</button>`
-      :`<span style="font-size:11px;color:var(--muted);background:#f1f3f5;padding:3px 8px;border-radius:6px;">Admin maestra</span>`}
+      ${!isSA?'<button class="btn btn-sm" onclick="toggleAcceso(\''+esc(u.usuario)+'\')">'+(activo?'Desactivar':'Activar')+'</button> <button class="btn btn-sm" onclick="editUsuario(\''+esc(u.usuario)+'\')">Editar</button> <button class="btn btn-sm" onclick="resetPwd(\''+esc(u.usuario)+'\')">Cedula</button>':'<span style="font-size:11px;color:var(--muted);background:#f1f3f5;padding:3px 8px;border-radius:6px;">Admin maestra</span>'}
     </div>`;
   };
   const activosHTML=ST.usuarios.filter(u=>u.activo!==false).map(rows).join('');
@@ -1439,10 +1468,7 @@ function renderAdmin(mc){
     </div>
   </div>
 
-  ${inactivos>0?`<div class="card" style="margin-bottom:14px;">
-    <div class="card-head"><h4>🔒 Sin acceso (${inactivos}) — actívalos cuando los necesites</h4></div>
-    <div class="card-body" style="padding:0 18px;">${inactivosHTML}</div>
-  </div>`:''}
+  ${inactivos>0?'<div class="card" style="margin-bottom:14px;"><div class="card-head"><h4>Sin acceso ('+inactivos+')</h4></div></div>':''}
 
   <div class="card">
     <div class="card-head"><h4>ℹ️ Cómo funciona</h4></div>
@@ -1475,7 +1501,7 @@ function modalUsuario(usuarioKey){
         <div class="field"><label>Contraseña inicial</label><input id="uPass" value="${esc(u?.contrasena||u?.cedula||'')}" placeholder="Dejar en blanco = usar cédula"></div>
       </div>
       <div class="field"><label>Rol</label><select id="uRol">
-        ${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${u?.rol===k?'selected':''}>${v.label}</option>`).join('')}
+        ${Object.entries(ROLES).map(([k,v])=>'<option value="'+k+'" '+(u?.rol===k?'selected':'')+'>'+v.label+'</option>').join('')}
       </select></div>
     </div>
     <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="uSave">Guardar</button></div>`;
@@ -1522,12 +1548,12 @@ function modalDrive(){
   document.getElementById('modal').innerHTML=`
     <div class="modal-head"><h3>☁ Conectar Google Drive</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
-      ${ST.scriptUrl?`<div style="background:var(--green-bg);color:var(--green);padding:10px 12px;border-radius:8px;margin-bottom:14px;font-size:12.5px;">✅ Conectado<br><span style="font-size:11px;word-break:break-all;">${esc(ST.scriptUrl)}</span></div>`:`<div style="background:var(--amber-bg);color:var(--amber);padding:10px 12px;border-radius:8px;margin-bottom:14px;font-size:12.5px;">🟡 Sin conexión remota. Los datos se guardan solo en este equipo.</div>`}
+      ${ST.scriptUrl?'<div style="background:#d1fae5;color:#065f46;padding:10px 12px;border-radius:8px;margin-bottom:14px;font-size:12.5px;">Conectado: <code style="font-size:10.5px;word-break:break-all;">'+esc(ST.scriptUrl)+'</code></div>':'<div style="background:#fef3c7;color:#92400e;padding:10px 12px;border-radius:8px;margin-bottom:14px;font-size:12.5px;">Sin conexion. Pega la URL del Apps Script abajo.</div>'}
       <div class="field"><label>URL del Apps Script (Code.gs)</label><input id="drUrl" value="${esc(ST.scriptUrl)}" placeholder="https://script.google.com/macros/s/..."></div>
       <p style="font-size:11.5px;color:var(--muted);">Esta URL conecta el portal y TODAS las herramientas a Google Drive. Configúrala una sola vez.</p>
     </div>
     <div class="modal-foot" style="justify-content:space-between;">
-      ${ST.scriptUrl?`<button class="btn btn-danger btn-sm" id="drDisc">Desconectar</button>`:'<span></span>'}
+      ${ST.scriptUrl?'<button class="btn btn-danger btn-sm" id="drDisc">Desconectar</button>':'<span></span>'}
       <div style="display:flex;gap:8px;"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="drConn">Conectar y probar</button></div>
     </div>`;
   openModal();
