@@ -1226,17 +1226,46 @@ function renderOrganigrama(mc){
 function modalAgregarPersona(nivel, equipoIdx){
   const etiqueta = nivel==='planta'?'Personal de planta':nivel==='asistencia'?'Asistencia a la Coordinación':nivel==='asesores'?'Asesores':nivel==='paa'?'Coordinación PAA':
     (getOrg().equipos||[])[equipoIdx]?.nombre||'Equipo';
-  document.getElementById('modal').innerHTML=`
-    <div class="modal-head"><h3>Agregar persona — ${esc(etiqueta)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div class="modal-body">
-      <div class="field"><label>Nombre completo</label><input id="apNom" placeholder="Nombre y apellidos"></div>
-      <div class="field"><label>Cargo</label><input id="apCargo" placeholder="Ej: Profesional Universitario"></div>
-      <div class="field"><label>Descripción breve</label><textarea id="apDesc" rows="2" placeholder="Qué hace en la coordinación..."></textarea></div>
-      <div class="field"><label>Usuario del sistema (opcional)</label><input id="apUser" placeholder="primernombre.apellido"></div>
-      <div class="field"><label>Foto (JPG/PNG — máx 2 MB, opcional)</label><input type="file" id="apFoto" accept=".jpg,.jpeg,.png,.webp"></div>
-    </div>
-    <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="apSave">Agregar</button></div>`;
+  const fs='width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;color:#0f172a;background:#f8fafc;font-family:inherit;box-sizing:border-box;';
+  document.getElementById('modal').innerHTML=''
+    +'<div class="modal-head"><h3>Agregar persona — '+esc(etiqueta)+'</h3><button class="modal-close" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body">'
+    // Avatar preview
+    +'<div style="display:flex;align-items:center;gap:16px;padding:14px;background:#f8fafc;border-radius:12px;margin-bottom:20px;border:1px solid #e2e8f0;">'
+      +'<div style="position:relative;flex-shrink:0;">'
+        +'<div id="apAvatarPrev" style="width:64px;height:64px;border-radius:50%;background:#0f1f3d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.15);">?</div>'
+        +'<label for="apFoto" style="position:absolute;bottom:-4px;right:-4px;width:24px;height:24px;border-radius:50%;background:#0f1f3d;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;border:2px solid #fff;" title="Agregar foto">📷</label>'
+        +'<input type="file" id="apFoto" accept=".jpg,.jpeg,.png,.webp" style="display:none;">'
+      +'</div>'
+      +'<div>'
+        +'<div id="apNamePrev" style="font-weight:800;font-size:14px;color:#0f172a;">Nuevo integrante</div>'
+        +'<div id="apCargoPrev" style="font-size:12px;color:#64748b;margin-top:2px;">'+esc(etiqueta)+'</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="mf"><span>Nombre completo *</span><input id="apNom" placeholder="Nombre y apellidos" style="'+fs+'"></div>'
+    +'<div class="mf"><span>Cargo / Título profesional</span><input id="apCargo" placeholder="Ej: Arquitecta — Contratista" style="'+fs+'"></div>'
+    +'<div class="mf"><span>Descripción profesional</span><textarea id="apDesc" style="'+fs+'min-height:90px;resize:vertical;" placeholder="Funciones que desempeña en la coordinación..."></textarea></div>'
+    +'<div class="mf"><span>Usuario del sistema (opcional)</span><input id="apUser" placeholder="primernombre.apellido" style="'+fs+'font-family:monospace;"></div>'
+    +'</div>'
+    +'<div class="modal-foot">'
+      +'<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+      +'<button class="btn btn-primary" id="apSave">+ Agregar al organigrama</button>'
+    +'</div>';
   openModal();
+  // Live preview for name/cargo/foto
+  document.getElementById('apNom')?.addEventListener('input',function(){
+    const el=document.getElementById('apNamePrev');if(el)el.textContent=this.value||'Nuevo integrante';
+    const av=document.getElementById('apAvatarPrev');
+    if(av&&!av.querySelector('img')){const initials=this.value.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('');av.textContent=initials||'?';}
+  });
+  document.getElementById('apCargo')?.addEventListener('input',function(){const el=document.getElementById('apCargoPrev');if(el)el.textContent=this.value||'width:100%;padding:1...';});
+  document.getElementById('apFoto')?.addEventListener('change',function(){
+    const file=this.files[0];if(!file)return;
+    const r=new FileReader();r.onload=function(e){
+      const av=document.getElementById('apAvatarPrev');
+      if(av){av.innerHTML='<img src="'+e.target.result+'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">';}
+    };r.readAsDataURL(file);
+  });
   document.getElementById('apSave').addEventListener('click',()=>{
     const nombre=document.getElementById('apNom').value.trim();
     if(!nombre){ toast('El nombre es obligatorio'); return; }
@@ -1261,13 +1290,13 @@ function modalAgregarPersona(nivel, equipoIdx){
 }
 
 function modalAgregarEquipo(){
-  document.getElementById('modal').innerHTML=`
-    <div class="modal-head"><h3>Nuevo equipo</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div class="modal-body">
-      <div class="field"><label>Nombre del equipo</label><input id="aeNom" placeholder="Ej: Gestión Documental"></div>
-      <div class="field"><label>Color (hex)</label><input id="aeColor" type="color" value="#0e7490" style="width:60px;height:36px;border:none;cursor:pointer;"></div>
-    </div>
-    <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="aeSave">Crear equipo</button></div>`;
+  document.getElementById('modal').innerHTML=''
+    +'<div class="modal-head"><h3>Nuevo equipo contratista</h3><button class="modal-close" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="mf"><span>Nombre del equipo</span><input id="aeNom" placeholder="Ej: Gestión Documental" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;color:#0f172a;background:#f8fafc;font-family:inherit;box-sizing:border-box;"></div>'
+    +'<div class="mf"><span>Color del equipo</span><div style="display:flex;align-items:center;gap:12px;"><input id="aeColor" type="color" value="#0e7490" style="width:48px;height:48px;border:none;cursor:pointer;border-radius:8px;"><span id="aeColorLabel" style="font-size:13px;color:#64748b;">Se verá en las tarjetas del equipo</span></div></div>'
+    +'</div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="aeSave">Crear equipo</button></div>';
   openModal();
   document.getElementById('aeSave').addEventListener('click',async()=>{
     const nombre=document.getElementById('aeNom').value.trim();
