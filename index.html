@@ -432,30 +432,44 @@ async function remoteSave(tool, data){
 async function loadPortalData(){
   ST.scriptUrl = loGet('script_url');
   try{ ST.pwdOverrides=JSON.parse(loGet('pwd_overrides')||'{}'); }catch(e){}
-  try{
-    if(ST.scriptUrl){
-      const d=await remoteLoad('portal');
-      // Si Drive tiene datos de usuarios, usarlos; si no, subir los defaults
-      ST.usuarios=d.usuarios&&d.usuarios.length>0 ? d.usuarios : [...DEFAULT_USUARIOS];
+
+  // Siempre cargar localStorage primero (más confiable)
+  const localCache=loGet('portal_cache');
+  if(localCache){
+    try{
+      const d=JSON.parse(localCache);
+      ST.usuarios=d.usuarios&&d.usuarios.length>0?d.usuarios:[...DEFAULT_USUARIOS];
       ST.tools=d.tools||[];
       ST.orgData=d.organigrama||null;
-      if(!d.usuarios||d.usuarios.length===0){ await savePortalData(); } // sembrar en Drive
-      loSet('portal_cache',JSON.stringify({usuarios:ST.usuarios,tools:ST.tools,organigrama:ST.orgData}));
-    } else {
-      const c=loGet('portal_cache');
-      if(c){ const d=JSON.parse(c); ST.usuarios=d.usuarios||[...DEFAULT_USUARIOS]; ST.tools=d.tools||[]; ST.orgData=d.organigrama||null; }
-      else { ST.usuarios=[...DEFAULT_USUARIOS]; }
-    }
-  }catch(e){
-    const c=loGet('portal_cache');
-    if(c){ try{ const d=JSON.parse(c); ST.usuarios=d.usuarios||[...DEFAULT_USUARIOS]; ST.tools=d.tools||[]; ST.orgData=d.organigrama||null; }catch(e2){ ST.usuarios=[...DEFAULT_USUARIOS]; } }
-    else { ST.usuarios=[...DEFAULT_USUARIOS]; }
+    }catch(e){ ST.usuarios=[...DEFAULT_USUARIOS]; }
+  } else {
+    ST.usuarios=[...DEFAULT_USUARIOS];
+  }
+
+  // Si hay Drive, cargar en segundo plano sin pisar el organigrama local
+  if(ST.scriptUrl){
+    try{
+      const d=await remoteLoad('portal');
+      // Solo actualizar usuarios y tools desde Drive (no organigrama — localStorage manda)
+      if(d.usuarios&&d.usuarios.length>0) ST.usuarios=d.usuarios;
+      if(d.tools&&d.tools.length>0) ST.tools=d.tools;
+      // Organigrama: usar Drive solo si localStorage está vacío
+      if(!ST.orgData&&d.organigrama) ST.orgData=d.organigrama;
+      // Sincronizar: subir a Drive si Drive no tiene datos
+      if(!d.usuarios||d.usuarios.length===0) savePortalData();
+    }catch(e){ /* Drive falló, ya tenemos localStorage */ }
   }
 }
+
 async function savePortalData(){
   const payload={usuarios:ST.usuarios, tools:ST.tools, organigrama:ST.orgData};
+  // localStorage primero — siempre funciona
   loSet('portal_cache',JSON.stringify(payload));
-  await remoteSave('portal',payload);
+  // Drive en segundo plano — sin bloquear
+  if(ST.scriptUrl){
+    remoteSave('portal',payload).catch(()=>{});
+  }
+  return Promise.resolve();
 }
 
 /* ═══ Login ═══ */
@@ -1090,7 +1104,9 @@ function exportDashReport(TD,P,totalCdp,adj,ejec,fin,faseCount,avg){
 
 /* ═══ ORGANIGRAMA ═══ */
 function getOrg(){
-  if(!ST.orgData) return structuredClone(ORG_DEFAULT);
+  if(!ST.orgData){
+    ST.orgData = structuredClone(ORG_DEFAULT);
+  }
   const org = ST.orgData;
   // Migrar estructura antigua: si asesores no existe como campo separado
   // pero existe como equipo, moverlo al nivel correcto
@@ -1104,6 +1120,9 @@ function getOrg(){
     }
   }
   if(!org.asistencia) org.asistencia = [];
+  if(!org.paa) org.paa = structuredClone(ORG_DEFAULT.paa||[]);
+  if(!org.asesores) org.asesores = structuredClone(ORG_DEFAULT.asesores||[]);
+  if(!org.planta) org.planta = structuredClone(ORG_DEFAULT.planta||[]);
   if(!org.equipos) org.equipos = structuredClone(ORG_DEFAULT.equipos);
   return org;
 }
