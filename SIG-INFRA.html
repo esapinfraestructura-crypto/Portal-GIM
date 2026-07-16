@@ -1082,23 +1082,22 @@ function getTeams(){
 }
 function saveTeams(t){localStorage.setItem(TEAM_KEY,JSON.stringify(t));}
 function getTeamList(rol){
-  const custom=getTeams();
-  if(custom&&custom[rol]&&custom[rol].length>0)return custom[rol];
-  if(rol==='supervisores')return getSupervisores();
-  // Include users with main rol OR with supervisor flag
-  return USERS.filter(u=>u.activo&&(u.rol===rol||(rol==='supervisores'&&u.esSupervisor))).map(u=>u.nombre);
+  try{
+    const raw=localStorage.getItem('sig_team_'+rol);
+    if(raw){const arr=JSON.parse(raw);if(arr&&arr.length>0)return arr;}
+  }catch(e){}
+  // Defaults
+  if(rol==='supervisores') return USERS.filter(u=>u.activo&&(u.esSupervisor||u.usuario==='walter.isaza'||u.usuario==='ivan.cespedes')).map(u=>u.nombre).filter(Boolean).concat(['Walter David Isaza Avilés','Iván David Céspedes Roa']).filter((v,i,a)=>a.indexOf(v)===i);
+  return USERS.filter(u=>u.activo&&u.rol===rol).map(u=>u.nombre);
 }
+function saveTeamList(rol,arr){localStorage.setItem('sig_team_'+rol,JSON.stringify(arr));}
 function ensureTeams(){
-  const t=getTeams();
-  if(t)return t;
-  const fresh={
-    tecnico:USERS.filter(u=>u.rol==='tecnico'&&u.activo).map(u=>u.nombre),
-    juridico:USERS.filter(u=>u.rol==='juridico'&&u.activo).map(u=>u.nombre),
-    financiero:USERS.filter(u=>u.rol==='financiero'&&u.activo).map(u=>u.nombre),
-    supervisores:getSupervisores()
+  return {
+    tecnico:getTeamList('tecnico'),
+    juridico:getTeamList('juridico'),
+    financiero:getTeamList('financiero'),
+    supervisores:getTeamList('supervisores')
   };
-  saveTeams(fresh);
-  return fresh;
 }
 
 
@@ -1975,11 +1974,10 @@ function agregarAEquipo(key){
   const input=document.getElementById('newName_'+key);
   const nombre=input?.value?.trim();
   if(!nombre){toast('Escribe un nombre','error');return;}
-  const teams=ensureTeams();
-  if(!teams[key])teams[key]=[];
-  if(teams[key].includes(nombre)){toast('Ya está en la lista','warn');return;}
-  teams[key].push(nombre);
-  saveTeams(teams);
+  const list=getTeamList(key);
+  if(list.includes(nombre)){toast('Ya está en la lista','warn');return;}
+  list.push(nombre);
+  saveTeamList(key,list);
   input.value='';
   logAudit('Agregó a '+key+': '+nombre,'');
   renderEquipos();
@@ -1987,20 +1985,19 @@ function agregarAEquipo(key){
 }
 
 function quitarDeEquipo(key,idx){
-  const teams=ensureTeams();
-  const nombre=teams[key][idx];
+  const list=getTeamList(key);
+  const nombre=list[idx];
   if(!confirm('¿Quitar a '+nombre+' de la lista?'))return;
-  teams[key].splice(idx,1);
-  saveTeams(teams);
+  list.splice(idx,1);
+  saveTeamList(key,list);
   logAudit('Quitó de '+key+': '+nombre,'');
   renderEquipos();
   toast('Quitado: '+nombre);
 }
 
 function sincronizarEquipo(rol){
-  const teams=ensureTeams();
-  teams[rol]=USERS.filter(u=>u.rol===rol&&u.activo).map(u=>u.nombre);
-  saveTeams(teams);
+  const list=USERS.filter(u=>u.rol===rol&&u.activo).map(u=>u.nombre);
+  saveTeamList(rol,list);
   renderEquipos();
   toast('Lista sincronizada con el directorio','success');
 }
