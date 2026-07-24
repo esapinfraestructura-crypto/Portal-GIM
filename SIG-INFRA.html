@@ -1381,18 +1381,19 @@ function toggleAdicionRow(i){
 
 
 function saveProj(orig,isNew){
-  const nombre=document.getElementById('mNom').value.trim();
+  try{
+  const nombre=document.getElementById('mNom')?.value?.trim()||'';
   if(!nombre){toast('El nombre es obligatorio','error');return;}
   const prev={fase:orig.fase,avance:orig.avance,tecnico:orig.tecnico,adjudicado:orig.adjudicado};
-  orig.nombre=nombre;orig.sede=document.getElementById('mSede').value;
-  orig.tipo=document.getElementById('mTipo').value;orig.objeto=document.getElementById('mObj').value.trim();
+  orig.nombre=nombre;orig.sede=document.getElementById('mSede')?.value||orig.sede||'Sede Central';
+  orig.tipo=document.getElementById('mTipo')?.value||orig.tipo||'';orig.objeto=document.getElementById('mObj')?.value?.trim()||'';
   orig.fase=document.getElementById('mFaseBloque')?.value||'pre';
   orig.fasePrec=document.getElementById('mFasePrec')?.value||'necesidad';
   orig.faseCont=document.getElementById('mFaseCont')?.value||'acta_inicio';
   orig.fasePos=document.getElementById('mFasePos')?.value||'acta_final';
   orig.avance=parseInt(document.getElementById('mAvance')?.value)||0;
   orig.adjudicado=document.getElementById('mAdj')?.checked||false;orig.secop=document.getElementById('mSecop')?.value?.trim()||'';
-  orig.tecnico=document.getElementById('mTec').value;orig.juridico=document.getElementById('mJur').value;
+  orig.tecnico=document.getElementById('mTec')?.value||'';orig.juridico=document.getElementById('mJur')?.value||'';
   orig.financiero=document.getElementById('mFin').value;orig.supervisor=document.getElementById('mSup')?.value||'';
   orig.equipoActual=document.getElementById('mEqActual')?.value||'tecnico';
   orig.contratista=document.getElementById('mCont')?.value?.trim()||'';
@@ -1429,9 +1430,9 @@ function saveProj(orig,isNew){
   orig.actasPago=pagosNew.filter(p=>p.valor>0).length;
   orig.retencion=parseFloat(document.getElementById('mRetencion')?.value)||0;
   orig.fechaActaFinal=document.getElementById('mFActa')?.value||'';
-  orig.cdp=parseFloat(document.getElementById('mCdp').value)||0;orig.valorContrato=parseFloat(document.getElementById('mVal').value)||0;
-  orig.fechaInicio=document.getElementById('mFini').value;orig.fechaFin=document.getElementById('mFfin').value;
-  orig.observaciones=document.getElementById('mObs').value.trim();
+  orig.cdp=parseFloat(document.getElementById('mCdp')?.value)||0;orig.valorContrato=parseFloat(document.getElementById('mVal')?.value)||0;
+  orig.fechaInicio=document.getElementById('mFini')?.value||'';orig.fechaFin=document.getElementById('mFfin')?.value||'';
+  orig.observaciones=document.getElementById('mObs')?.value?.trim()||'';
   if(!orig.historial)orig.historial=[];
   const cambios=[];
   if(prev.fase!==orig.fase)cambios.push('Fase: '+FASES[prev.fase]?.label+' → '+FASES[orig.fase]?.label);
@@ -1445,16 +1446,13 @@ function saveProj(orig,isNew){
   logAudit(isNew?'Creó proyecto: '+nombre:accion,nombre);
   save();
   closeModal();
-  // Siempre actualizar proyectos y dashboard
-  renderProyectos();
-  try{
-    // Refresh dashboard en background para que cuando el usuario cambie ya esté actualizado
-    const prevPage=PAGE;
-    PAGE='dashboard';renderDashboard();
-    PAGE=prevPage;
-    if(prevPage==='proyectos')renderProyectos();
-  }catch(e){}
+  // Refresh pages
+  try{if(typeof renderProyectos==='function')renderProyectos();}catch(e){}
   toast(isNew?'Proyecto creado':'Guardado','success');
+  }catch(err){
+    console.error('saveProj error:',err);
+    toast('Error al guardar: '+err.message,'error');
+  }
 }
 
 
