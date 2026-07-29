@@ -392,13 +392,81 @@ const DEFAULT_USUARIOS = [
 ];
 
 /* ═══ Roles ═══ */
+/* ═══ EQUIPOS: a qué grupo pertenece la persona ═══ */
+const EQUIPOS = {
+  tecnico:     { label:'Técnico GIM',       color:'#0e7490', icon:'🔧' },
+  supervisor:  { label:'Supervisor de Obra',color:'#d97706', icon:'🏗' },
+  juridico:    { label:'Jurídico GIM',      color:'#7c3aed', icon:'⚖️' },
+  financiero:  { label:'Financiero GIM',    color:'#15803d', icon:'💰' },
+  planta:      { label:'Planta ESAP',       color:'#b45309', icon:'🏛' },
+  asistencia:  { label:'Asistencia',        color:'#0891b2', icon:'🗂' },
+  asesor:      { label:'Asesor externo',    color:'#9333ea', icon:'💼' },
+  paa:         { label:'PAA / Contratación',color:'#db2777', icon:'📋' },
+  coordinacion:{ label:'Coordinación',      color:'#0f172a', icon:'👔' },
+  ti:          { label:'Tecnología / TI',   color:'#3b82f6', icon:'💻' },
+  otro:        { label:'Otro',              color:'#64748b', icon:'👤' }
+};
+
+/* ═══ NIVELES: qué puede hacer en el portal ═══ */
+const NIVELES = {
+  admin:   { label:'Administrador completo', color:'#dc2626', badge:'rb-admin',     desc:'Acceso total: gestiona usuarios, organigrama, herramientas y toda la configuración.',   edita:true },
+  editor:  { label:'Editor',                color:'#0284c7', badge:'rb-tecnico',    desc:'Puede ver y editar información de su equipo y módulos asignados. No gestiona usuarios.', edita:true },
+  lectura: { label:'Solo lectura',          color:'#475569', badge:'rb-lectura',    desc:'Solo puede consultar el portal. No puede crear, editar ni eliminar nada.',              edita:false}
+};
+
+/* ─ Compatibilidad retroactiva con código que use ROLES ─ */
 const ROLES = {
-  admin:      { label:'Administrador', color:'#7c3aed', badge:'rb-admin',     edita:true  },
+  admin:      { label:'Administrador', color:'#dc2626', badge:'rb-admin',     edita:true  },
   tecnico:    { label:'Técnico GIM',   color:'#0e7490', badge:'rb-tecnico',   edita:true  },
   juridico:   { label:'Jurídico GIM',  color:'#7c3aed', badge:'rb-juridico',  edita:true  },
   financiero: { label:'Financiero GIM',color:'#15803d', badge:'rb-financiero',edita:true  },
+  editor:     { label:'Editor',        color:'#0284c7', badge:'rb-tecnico',   edita:true  },
   lectura:    { label:'Solo lectura',  color:'#475569', badge:'rb-lectura',   edita:false }
 };
+
+/* ═══ HERRAMIENTAS — permisos por herramienta por usuario ═══ */
+const HERRAMIENTAS_PERMS = {
+  portal:     { label:'Portal GIM',          icon:'🏠', desc:'Dashboard, organigrama e informe ejecutivo' },
+  sig_infra:  { label:'SIG-INFRA',           icon:'📊', desc:'Seguimiento de proyectos de infraestructura' },
+  obra_neiva: { label:'Obra Neiva',          icon:'🏗', desc:'Control de obra en sede Neiva' },
+  active_doc: { label:'Documentos Activos',  icon:'📁', desc:'Gestión de documentos y SLA' },
+  umis:       { label:'UMIs / Mantenimiento',icon:'🔧', desc:'Solicitudes de mantenimiento CETAP' },
+  geo:        { label:'Georreferenciación',  icon:'🗺', desc:'Mapa de sedes y territoriales' }
+};
+
+const PERM_OPTS = [
+  { key:'ninguno', label:'Sin acceso', icon:'🚫', color:'#94a3b8', bg:'#f8fafc',  desc:'No puede abrir esta herramienta' },
+  { key:'ver',     label:'Solo ver',   icon:'👁',  color:'#0284c7', bg:'#eff6ff',  desc:'Ve información, no puede modificar ni subir' },
+  { key:'subir',   label:'Ver + subir',icon:'📤', color:'#7c3aed', bg:'#f5f3ff',  desc:'Ve y puede subir archivos/datos, no edita existentes' },
+  { key:'editar',  label:'Editar',     icon:'✏️', color:'#059669', bg:'#f0fdf4',  desc:'Control completo del contenido de la herramienta' },
+  { key:'admin',   label:'Admin',      icon:'⚙️', color:'#dc2626', bg:'#fef2f2',  desc:'Administra la herramienta, configura y gestiona todo' }
+];
+
+/* Helper: get a user's permission for a tool */
+function getUserPerm(u, toolKey){
+  if(!u) return 'ninguno';
+  if(u.nivel==='admin'||u.rol==='admin') return 'admin';
+  if(u.permisos && u.permisos[toolKey]){
+    const p=u.permisos[toolKey];
+    return p==='lectura'?'ver':p; // migrate old 'lectura' key
+  }
+  const fallback=u.nivel||u.rol||'ninguno';
+  return fallback==='lectura'?'ver':fallback;
+}
+
+/* Build tool registry from TOOLS_FIXED + any user-added tools in ST.tools */
+function getToolRegistry(){
+  const all=allTools();
+  return all.map(function(t){
+    return {
+      key: t.id.replace(/-/g,'_'),
+      rawId: t.id,
+      label: t.nombre,
+      icon: t.icono||'🔧',
+      desc: t.desc||''
+    };
+  });
+}
 
 
 const ORG_DEFAULT = {
@@ -1607,118 +1675,338 @@ function eliminarPersona(encoded){
 }
 
 function renderAdmin(mc){
-  const activos=ST.usuarios.filter(u=>u.activo!==false).length+1; // +1 super admin
-  const inactivos=ST.usuarios.filter(u=>u.activo===false).length;
-  const rows=u=>{
-    const isSA=u.usuario===SUPER_ADMIN.usuario;
-    const rolInfo=ROLES[u.rol]||ROLES.lectura;
-    const activo=u.activo!==false;
-    return `<div class="user-row" style="opacity:${activo?'1':'.55'}">
-      <div class="user-avatar" style="background:${rolInfo.color}1a;color:${rolInfo.color};">${(u.nombre||'?')[0].toUpperCase()}</div>
-      <div class="user-info">
-        <div class="user-name">${esc(u.nombre||u.usuario)} ${!activo?'<span style="font-size:10px;color:var(--red);font-weight:700;">[Sin acceso]</span>':''}</div>
-        <div class="user-meta">${esc(u.usuario)} · Cédula: ${esc(u.cedula||'—')} · Contraseña actual: <strong>${esc(u.contrasena)}</strong></div>
-      </div>
-      <span class="rol-badge ${rolInfo.badge}">${rolInfo.label}</span>
-      ${!isSA?'<button class="btn btn-sm" onclick="toggleAcceso(\''+esc(u.usuario)+'\')">'+(activo?'Desactivar':'Activar')+'</button> <button class="btn btn-sm" onclick="editUsuario(\''+esc(u.usuario)+'\')">Editar</button> <button class="btn btn-sm" onclick="resetPwd(\''+esc(u.usuario)+'\')">Cedula</button>':'<span style="font-size:11px;color:var(--muted);background:#f1f3f5;padding:3px 8px;border-radius:6px;">Admin maestra</span>'}
-    </div>`;
-  };
-  const activosHTML=ST.usuarios.filter(u=>u.activo!==false).map(rows).join('');
-  const inactivosHTML=ST.usuarios.filter(u=>u.activo===false).map(rows).join('');
-
-  mc.innerHTML=`
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-    <div>
-      <div class="section-lbl">Panel de administración — usuarios y accesos</div>
-      <div style="font-size:12.5px;color:var(--muted);">
-        <span style="color:var(--green);font-weight:700;">${activos} con acceso</span> ·
-        <span style="color:var(--red);font-weight:700;">${inactivos} sin acceso</span> ·
-        Solo tú puedes hacer cambios aquí
-      </div>
-    </div>
-    <button class="btn btn-primary" id="btnAddUser">+ Agregar usuario</button>
-  </div>
-
-  <div class="card" style="margin-bottom:14px;">
-    <div class="card-head"><h4>🔓 Con acceso activo (${activos})</h4></div>
-    <div class="card-body" style="padding:0 18px;">
-      ${rows({...SUPER_ADMIN,activo:true})}
-      ${activosHTML||'<div style="padding:12px 0;color:var(--muted);font-size:13px;">Solo tú tienes acceso activo.</div>'}
-    </div>
-  </div>
-
-  ${inactivos>0?'<div class="card" style="margin-bottom:14px;"><div class="card-head"><h4>Sin acceso ('+inactivos+')</h4></div></div>':''}
-
-  <div class="card">
-    <div class="card-head"><h4>ℹ️ Cómo funciona</h4></div>
-    <div class="card-body">
-      <p style="font-size:13px;color:var(--slate);line-height:1.7;">
-        <strong>Usuario:</strong> primernombre.primerapellido · <strong>Contraseña inicial:</strong> número de cédula.<br>
-        <strong>Cambiar contraseña:</strong> cualquier persona puede cambiar la suya desde el botón 🔑 en la barra superior, sin necesidad de que tú lo hagas.<br>
-        <strong>↺ Cédula:</strong> restablece la contraseña a la cédula original (útil si alguien olvida su nueva contraseña).<br>
-        <strong>Activar / Desactivar:</strong> controla quién puede entrar sin necesidad de eliminarlo. Los desactivados siguen en la lista para reactivarlos cuando quieras.<br>
-        <strong>Cambiar rol:</strong> usa el botón ✏️ para cambiar qué puede hacer cada persona.<br>
-        <strong>Admin maestra (duberly.carvajal):</strong> siempre puede entrar, no se puede desactivar ni eliminar.
-      </p>
-    </div>
-  </div>`;
-  document.getElementById('btnAddUser').addEventListener('click',()=>modalUsuario(null));
+  const isSA = SES.usuario === SUPER_ADMIN.usuario;
+  mc.innerHTML = ''
+    +'<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;">'
+      +['usuarios','herramientas_reg','administracion'].map(function(t,i){
+        const labels=['👤 Usuarios','🧰 Herramientas','⚙️ Administración'];
+        return '<button onclick="adminTab(\''+t+'\')" id="atab_'+t+'" style="padding:10px 20px;font-weight:800;font-size:13px;border:none;background:none;cursor:pointer;border-bottom:3px solid '+(i===0?'var(--cyan)':'transparent')+';color:'+(i===0?'var(--cyan)':'var(--muted)')+';transition:.15s;">'+labels[i]+'</button>';
+      }).join('')
+    +'</div>'
+    +'<div id="adminTabContent"></div>';
+  adminTab('usuarios');
 }
 
-function modalUsuario(usuarioKey){
-  const u=usuarioKey ? ST.usuarios.find(x=>x.usuario===usuarioKey) : null;
-  const isNew=!usuarioKey;
-  const fStyle='width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;color:#0f172a;background:#f8fafc;font-family:inherit;box-sizing:border-box;';
+function adminTab(tab){
+  ['usuarios','herramientas_reg','administracion'].forEach(function(t){
+    const btn=document.getElementById('atab_'+t);
+    if(!btn) return;
+    const active=(t===tab);
+    btn.style.borderBottomColor=active?'var(--cyan)':'transparent';
+    btn.style.color=active?'var(--cyan)':'var(--muted)';
+  });
+  const c=document.getElementById('adminTabContent');
+  if(!c) return;
+  if(tab==='usuarios') renderAdminUsuarios(c);
+  else if(tab==='herramientas_reg') renderAdminHerramientas(c);
+  else if(tab==='administracion') renderAdminSistema(c);
+}
 
-  // Build roles options
-  let rolesOpts='';
-  Object.entries(ROLES).forEach(function(entry){
-    const k=entry[0], v=entry[1];
-    rolesOpts+='<option value="'+k+'" '+(u&&u.rol===k?'selected':'')+'>'+v.label+'</option>';
+function renderAdminUsuarios(c){
+  const isSA=SES.usuario===SUPER_ADMIN.usuario;
+  const activos=ST.usuarios.filter(function(u){return u.activo!==false;}).length+1;
+  const inactivos=ST.usuarios.filter(function(u){return u.activo===false;}).length;
+
+  function buildRow(u, forceActive){
+    const isSArow=u.usuario===SUPER_ADMIN.usuario;
+    var firstEq=(Array.isArray(u.equipos)&&u.equipos[0])||u.equipo||'';
+    var eqInfo=(EQUIPOS&&EQUIPOS[firstEq])||{color:'#64748b',icon:'👤'};
+    var nivelInfo=(NIVELES&&NIVELES[u.nivel||u.rol])||{label:u.nivel||u.rol||'—',color:'#64748b'};
+    var activo=forceActive||(u.activo!==false);
+    var ini=(u.nombre||'?')[0].toUpperCase();
+    // Build equipo+nivel badges
+    var badges='';
+    var eqs=Array.isArray(u.equipos)&&u.equipos.length?u.equipos:(u.equipo?[u.equipo]:[]);
+    eqs.forEach(function(ek){var ei=EQUIPOS[ek]||{label:ek,color:'#64748b',icon:'👤'};badges+='<span style="display:inline-flex;align-items:center;gap:3px;background:'+ei.color+'15;color:'+ei.color+';border:1px solid '+ei.color+'30;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:700;">'+ei.icon+' '+ei.label+'</span>';});
+    badges+='<span style="display:inline-flex;align-items:center;gap:3px;background:'+(nivelInfo.color||'#64748b')+'15;color:'+(nivelInfo.color||'#64748b')+';border:1px solid '+(nivelInfo.color||'#64748b')+'30;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:700;">⚡ '+nivelInfo.label+'</span>';
+    // Permisos summary
+    var permBadges='';
+    if(u.permisos){
+      getToolRegistry().forEach(function(tr){
+        var p=getUserPerm(u,tr.key);
+        if(p&&p!=='ninguno'){var po=PERM_OPTS.find(function(x){return x.key===p;})||{icon:'',color:'#64748b'};permBadges+='<span title="'+tr.label+'" style="font-size:10px;background:'+po.color+'15;color:'+po.color+';border:1px solid '+po.color+'25;border-radius:5px;padding:1px 6px;font-weight:600;">'+tr.icon+' '+po.icon+'</span>';}
+      });
+    } else { permBadges='<span style="font-size:10px;color:#94a3b8;">Sin permisos configurados</span>'; }
+    var btns=isSArow
+      ?'<span style="font-size:11px;color:var(--muted);background:#f1f5f9;padding:3px 10px;border-radius:6px;font-weight:700;">Admin maestra</span>'
+      :'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
+        +'<button class="btn btn-sm" style="font-size:11.5px;padding:4px 12px;" onclick="editUsuario(\''+esc(u.usuario)+'\')">✏️ Editar</button>'
+        +'<button class="btn btn-sm" style="font-size:11.5px;padding:4px 12px;color:'+(activo?'#dc2626':'#059669')+';border-color:'+(activo?'#dc2626':'#059669')+';" onclick="toggleAcceso(\''+esc(u.usuario)+'\')">'+(activo?'🔒':'✅')+'</button>'
+      +'</div>';
+    return '<div class="user-row" style="opacity:'+(activo?'1':'.6')+';">'
+      +'<div class="user-avatar" style="background:'+eqInfo.color+'18;color:'+eqInfo.color+';font-weight:800;font-size:16px;">'+ini+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-weight:800;font-size:13.5px;color:var(--ink);">'+esc(u.nombre||u.usuario)
+          +(!activo?' <span style="font-size:9.5px;color:#dc2626;font-weight:700;background:#fef2f2;padding:1px 5px;border-radius:4px;">Sin acceso</span>':'')
+        +'</div>'
+        +'<div style="font-size:11.5px;color:#64748b;margin-top:2px;">👤 '+esc(u.usuario)+' · 🪪 '+esc(u.cedula||'—')+' · 🔑 <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:10.5px;color:#475569;">'+esc(u.contrasena||'—')+'</code></div>'
+        +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">'+badges+'</div>'
+        +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;padding-top:5px;border-top:1px solid #f1f5f9;">'+permBadges+'</div>'
+      +'</div>'
+      +'<div style="flex-shrink:0;">'+btns+'</div>'
+    +'</div>';
+  }
+
+  var activosHTML = ST.usuarios.filter(function(u){return u.activo!==false;}).map(function(u){return buildRow(u,false);}).join('');
+  var inactivosHTML = ST.usuarios.filter(function(u){return u.activo===false;}).map(function(u){return buildRow(u,false);}).join('');
+
+  c.innerHTML = ''
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'
+      +'<div style="font-size:12.5px;color:var(--muted);"><span style="color:#059669;font-weight:700;">'+activos+' con acceso</span> · <span style="color:#dc2626;font-weight:700;">'+inactivos+' sin acceso</span></div>'
+      +(isSA?'<button class="btn btn-primary" onclick="modalUsuario(null)">+ Nuevo usuario</button>':'')
+    +'</div>'
+    +'<div class="card" style="margin-bottom:12px;">'
+      +'<div class="card-head"><h4>🔓 Con acceso ('+activos+')</h4></div>'
+      +'<div class="card-body" style="padding:0 16px;">'
+        +buildRow(Object.assign({},SUPER_ADMIN,{activo:true}),true)
+        +(activosHTML||'<div style="padding:12px 0;color:var(--muted);font-size:13px;">Solo el admin maestro tiene acceso activo.</div>')
+      +'</div>'
+    +'</div>'
+    +(inactivos>0
+      ?'<div class="card"><div class="card-head"><h4>🔒 Sin acceso ('+inactivos+')</h4></div><div class="card-body" style="padding:0 16px;">'+inactivosHTML+'</div></div>'
+      :'');
+}
+
+function renderAdminHerramientas(c){
+  const isSA=SES.usuario===SUPER_ADMIN.usuario;
+  const tools=allTools();
+  c.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'
+    +'<div style="font-size:12.5px;color:var(--muted);">Estas herramientas aparecen automáticamente en la matriz de permisos de cada usuario.</div>'
+    +(isSA?'<button class="btn btn-primary" onclick="modalAddTool()">+ Nueva herramienta</button>':'')
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;">'
+    +tools.map(function(t){
+      var statusColor=t.estado==='activo'?'#059669':t.estado==='construccion'?'#d97706':'#64748b';
+      var statusLabel=t.estado==='activo'?'Activa':t.estado==='construccion'?'En construcción':'Inactiva';
+      return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
+          +'<span style="font-size:22px;">'+t.icono+'</span>'
+          +'<div><div style="font-weight:800;font-size:13px;color:var(--ink);">'+esc(t.nombre)+'</div>'
+          +'<span style="font-size:10px;font-weight:700;color:'+statusColor+';background:'+statusColor+'15;border-radius:999px;padding:1px 7px;">'+statusLabel+'</span></div>'
+        +'</div>'
+        +'<div style="font-size:11.5px;color:var(--muted);line-height:1.55;margin-bottom:10px;">'+esc(t.desc||'')+'</div>'
+        +'<div style="font-size:10.5px;color:#94a3b8;margin-bottom:8px;">🆔 '+esc(t.id)+'</div>'
+        +(isSA?'<div style="display:flex;gap:6px;">'
+          +'<button class="btn btn-sm" style="font-size:11px;" onclick="editTool(\''+t.id+'\')">✏️ Editar</button>'
+          +(!t.fijo?'<button class="btn btn-sm" style="font-size:11px;color:#dc2626;border-color:#dc2626;" onclick="eliminarTool(\''+t.id+'\')">🗑</button>':'')
+          +'</div>':'')
+      +'</div>';
+    }).join('')
+    +'</div>';
+}
+
+function modalAddTool(){
+  // Reuse existing openProjModal or build inline
+  document.getElementById('modal').innerHTML = ''
+    +'<div class="modal-head"><h3>➕ Nueva herramienta</h3><button class="modal-close" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#1d4ed8;margin-bottom:16px;line-height:1.6;">'
+    +'Al agregar una herramienta aquí, aparece automáticamente en la matriz de permisos de todos los usuarios para que puedas asignarles acceso.</div>'
+    +buildToolFormHTML(null)
+    +'</div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="toolSave">💾 Guardar herramienta</button></div>';
+  openModal();
+  document.getElementById('toolSave').addEventListener('click',saveToolFromModal);
+}
+
+function buildToolFormHTML(t){
+  var fStyle='width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;color:#0f172a;background:#f8fafc;font-family:inherit;box-sizing:border-box;';
+  var statusOpts=['activo','construccion','inactivo'].map(function(s){
+    var labels={activo:'✅ Activa',construccion:'🚧 En construcción',inactivo:'❌ Inactiva'};
+    return '<option value="'+s+'" '+(t&&t.estado===s?'selected':'')+'>'+labels[s]+'</option>';
+  }).join('');
+  var catOpts=['Infraestructura','Gestión documental','Mantenimiento','Académico','Administrativo','Otro'].map(function(c){
+    return '<option value="'+c+'" '+(t&&t.categoria===c?'selected':'')+'>'+c+'</option>';
+  }).join('');
+  return '<div style="display:grid;grid-template-columns:60px 1fr;gap:12px;margin-bottom:14px;">'
+    +'<div class="mf" style="margin:0;"><span>Ícono</span><input id="tIcono" value="'+(t?esc(t.icono):'🔧')+'" style="'+fStyle+'text-align:center;font-size:20px;" maxlength="4"></div>'
+    +'<div class="mf" style="margin:0;"><span>Nombre de la herramienta</span><input id="tNombre" value="'+(t?esc(t.nombre):'')+'" style="'+fStyle+'" placeholder="Ej: Control de Calidad"></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">'
+    +'<div class="mf" style="margin:0;"><span>ID único</span><input id="tId" value="'+(t?esc(t.id):'')+'" style="'+fStyle+(!t?'':'background:#f1f5f9;') +'" '+(t?'disabled':'')+' placeholder="sin-espacios-min" title="Solo letras, números y guiones. No se puede cambiar."></div>'
+    +'<div class="mf" style="margin:0;"><span>URL / archivo</span><input id="tUrl" value="'+(t?esc(t.url):'')+'" style="'+fStyle+'" placeholder="herramienta.html"></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">'
+    +'<div class="mf" style="margin:0;"><span>Categoría</span><select id="tCat" style="'+fStyle+'display:block;">'+catOpts+'</select></div>'
+    +'<div class="mf" style="margin:0;"><span>Estado</span><select id="tEstado" style="'+fStyle+'display:block;">'+statusOpts+'</select></div>'
+    +'</div>'
+    +'<div class="mf"><span>Descripción breve</span><textarea id="tDesc" style="'+fStyle+'min-height:70px;display:block;">'+(t?esc(t.desc):'')+'</textarea></div>';
+}
+
+function saveToolFromModal(){
+  var nombre=(document.getElementById('tNombre')?.value||'').trim();
+  var id=(document.getElementById('tId')?.value||'').trim().toLowerCase().replace(/\s+/g,'-');
+  var icono=(document.getElementById('tIcono')?.value||'🔧').trim();
+  var url=(document.getElementById('tUrl')?.value||'').trim();
+  var cat=document.getElementById('tCat')?.value||'Otro';
+  var estado=document.getElementById('tEstado')?.value||'construccion';
+  var desc=(document.getElementById('tDesc')?.value||'').trim();
+  if(!nombre||!id){toast('Nombre e ID son obligatorios');return;}
+  var entry={id,nombre,icono,url,categoria:cat,estado,desc,fijo:false};
+  var idx=ST.tools.findIndex(function(t){return t.id===id;});
+  if(idx>=0)ST.tools[idx]=entry;else ST.tools.push(entry);
+  savePortalData().then(function(){closeModal();adminTab('herramientas_reg');toast('✅ Herramienta guardada');});
+}
+
+function renderAdminSistema(c){
+  const isSA=SES.usuario===SUPER_ADMIN.usuario;
+  c.innerHTML = '<div class="card" style="margin-bottom:14px;">'
+    +'<div class="card-head"><h4>🔑 Transferir administración maestra</h4></div>'
+    +'<div class="card-body">'
+    +'<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400e;margin-bottom:14px;line-height:1.6;">'
+    +'<strong>⚠️ Acción irreversible:</strong> Al transferir la administración maestra, pierdes el acceso de admin maestro y lo recibe la persona elegida. Solo el admin maestro actual puede hacer esto.'
+    +'</div>'
+    +(isSA
+      ?'<div class="mf"><span>Transferir a este usuario</span>'
+        +'<select id="transferTarget" style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;color:#0f172a;background:#f8fafc;font-family:inherit;box-sizing:border-box;display:block;">'
+        +'<option value="">— Elige el nuevo administrador maestro —</option>'
+        +ST.usuarios.filter(function(u){return u.activo!==false;}).map(function(u){return '<option value="'+esc(u.usuario)+'">'+esc(u.nombre)+' ('+esc(u.usuario)+')</option>';}).join('')
+        +'</select></div>'
+        +'<button class="btn btn-primary" style="background:#dc2626;border-color:#dc2626;margin-top:4px;" onclick="transferirAdmin()">Transferir administración →</button>'
+      :'<div style="color:#64748b;font-size:13px;">Solo el administrador maestro actual puede transferir este acceso.</div>')
+    +'</div></div>'
+
+    +'<div class="card" style="margin-bottom:14px;">'
+    +'<div class="card-head"><h4>☁️ Conexión Google Drive</h4></div>'
+    +'<div class="card-body"><button class="btn btn-ghost" onclick="modalDrive()">⚙️ Configurar Drive</button></div>'
+    +'</div>'
+
+    +'<div class="card">'
+    +'<div class="card-head"><h4>🔄 Restablecer datos</h4></div>'
+    +'<div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;">'
+    +(isSA?'<button class="btn btn-sm" style="color:#dc2626;border-color:#dc2626;" onclick="resetOrganigrama()">Restablecer organigrama</button>':'')
+    +'<button class="btn btn-sm" onclick="modalPwd()">🔑 Cambiar mi contraseña</button>'
+    +'</div></div>';
+}
+
+window.transferirAdmin = function(){
+  const sel=document.getElementById('transferTarget');
+  if(!sel||!sel.value){toast('Elige un usuario primero');return;}
+  const target=ST.usuarios.find(function(u){return u.usuario===sel.value;});
+  if(!target){toast('Usuario no encontrado');return;}
+  if(!confirm('¿Transferir la administración maestra a '+target.nombre+'?\n\nEsta acción es IRREVERSIBLE. Perderás el acceso de administrador maestro.\n\n¿Continuar?'))return;
+  // Update SUPER_ADMIN reference in localStorage
+  const newSA={usuario:target.usuario,contrasena:target.contrasena,rol:'admin',nombre:target.nombre,cedula:target.cedula,activo:true};
+  loSet('portal_super_admin',JSON.stringify(newSA));
+  toast('⚠️ Transferencia registrada. Recarga el portal para que surta efecto.');
+};
+
+
+
+function modalUsuario(usuarioKey){
+  const u = usuarioKey ? ST.usuarios.find(function(x){return x.usuario===usuarioKey;}) : null;
+  const isNew = !usuarioKey;
+  const fStyle = 'width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;color:#0f172a;background:#f8fafc;font-family:inherit;box-sizing:border-box;';
+  const fDis   = fStyle+'background:#f1f5f9;color:#64748b;cursor:not-allowed;';
+
+  const curEquipos = (u && Array.isArray(u.equipos) && u.equipos.length) ? u.equipos : (u && u.equipo ? [u.equipo] : []);
+  const isActive   = u ? (u.activo !== false) : true;
+  const isFullAdmin = u && (u.nivel==='admin'||u.rol==='admin');
+
+  // ── Equipo checkboxes
+  let equipoChecks = '';
+  Object.entries(EQUIPOS).forEach(function(e){
+    const k=e[0], v=e[1], chk=curEquipos.indexOf(k)>=0;
+    equipoChecks += '<label id="eq_lbl_'+k+'" style="display:flex;align-items:center;gap:9px;padding:8px 11px;border:2px solid '+(chk?v.color:'#e2e8f0')+';border-radius:9px;cursor:pointer;background:'+(chk?v.color+'10':'#fff')+';transition:.15s;user-select:none;">'
+      +'<input type="checkbox" name="uEquipo" value="'+k+'" '+(chk?'checked':'')+' style="accent-color:'+v.color+';width:15px;height:15px;cursor:pointer;">'
+      +'<span style="font-size:14px;">'+v.icon+'</span>'
+      +'<span style="font-size:12.5px;font-weight:700;color:'+(chk?v.color:'#374151')+';">'+v.label+'</span>'
+    +'</label>';
   });
 
-  // Build active checkbox
-  const isActive=(u&&u.activo!==false);
+  // ── Permissions matrix
+  // Header
+  let matrixHTML = '<div style="overflow-x:auto;margin-bottom:4px;">'
+    +'<table style="width:100%;border-collapse:separate;border-spacing:0 5px;font-size:12.5px;">'
+    +'<thead><tr>'
+    +'<th style="text-align:left;padding:0 8px 6px;color:#64748b;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;">Herramienta</th>';
+  PERM_OPTS.forEach(function(p){
+    matrixHTML += '<th style="text-align:center;padding:0 6px 6px;color:'+p.color+';font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;min-width:62px;">'+p.label+'</th>';
+  });
+  matrixHTML += '</tr></thead><tbody>';
 
-  document.getElementById('modal').innerHTML=''
-    +'<div class="modal-head"><h3>'+(isNew?'Nuevo usuario':'Editar: '+esc(u?u.nombre:usuarioKey||''))+'</h3><button class="modal-close" onclick="closeModal()">✕</button></div>'
-    +'<div class="modal-body">'
+  Object.entries(HERRAMIENTAS_PERMS).forEach(function(e){
+    const tk=e[0], tv=e[1];
+    const curPerm = getUserPerm(u, tk);
+    matrixHTML += '<tr style="background:#fff;border-radius:10px;">'
+      +'<td style="padding:10px 10px;border:1.5px solid #f1f5f9;border-right:none;border-radius:10px 0 0 10px;">'
+        +'<div style="display:flex;align-items:center;gap:8px;">'
+          +'<span style="font-size:17px;">'+tv.icon+'</span>'
+          +'<div><div style="font-weight:700;color:#0f172a;font-size:12.5px;">'+tv.label+'</div>'
+          +'<div style="font-size:11px;color:#94a3b8;">'+tv.desc+'</div></div>'
+        +'</div>'
+      +'</td>';
+    PERM_OPTS.forEach(function(p, pi){
+      const isLast = pi===PERM_OPTS.length-1;
+      const sel = (curPerm===p.key) || (isFullAdmin&&p.key==='admin');
+      matrixHTML += '<td style="text-align:center;padding:10px 6px;border:1.5px solid #f1f5f9;border-left:none;'+(isLast?'border-radius:0 10px 10px 0;':'border-right:none;')+'background:'+(sel?p.bg:'transparent')+';transition:.15s;">'
+        +'<label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;">'
+        +'<input type="radio" name="perm_'+tk+'" value="'+p.key+'" '+(sel?'checked':'')+' style="accent-color:'+p.color+';width:16px;height:16px;cursor:pointer;" class="perm-radio" data-tool="'+tk+'">'
+        +'</label></td>';
+    });
+    matrixHTML += '</tr>';
+  });
+  matrixHTML += '</tbody></table></div>';
 
-    // Nombre + usuario
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
-      +'<div class="mf"><span>Nombre completo</span><input id="uNom" value="'+esc(u?u.nombre:'')+'" style="'+fStyle+'" placeholder="Ej: María López"></div>'
-      +'<div class="mf"><span>Usuario del sistema</span><input id="uUser" value="'+esc(u?u.usuario:'')+'" style="'+fStyle+'" '+(isNew?'placeholder="primernombre.apellido"':'disabled style="'+fStyle+'background:#f1f5f9;color:#64748b;cursor:not-allowed;"')+'></div>'
+  // Quick-set buttons
+  const qsRow = '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;">'
+    +'<span style="font-size:11px;color:#64748b;align-self:center;font-weight:600;">Acceso rápido:</span>'
+    +PERM_OPTS.map(function(p){
+      return '<button type="button" onclick="setAllPerms(\''+p.key+'\')" style="font-size:11px;padding:4px 11px;border:1.5px solid '+p.color+';color:'+p.color+';border-radius:7px;background:'+p.bg+';cursor:pointer;font-weight:700;">'+p.label+' todo</button>';
+    }).join('')
+    +'</div>';
+
+  document.getElementById('modal').innerHTML = ''
+    +'<div class="modal-head"><h3>'+(isNew?'➕ Nuevo usuario':'✏️ Editar: '+esc(u?u.nombre:usuarioKey||''))+'</h3><button class="modal-close" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body" style="max-height:78vh;overflow-y:auto;padding:20px 22px;">'
+
+    // Datos personales
+    +'<div class="section-lbl" style="margin-bottom:10px;">Datos personales</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">'
+      +'<div class="mf" style="margin:0;"><span>Nombre completo</span><input id="uNom" value="'+esc(u?u.nombre:'')+'" style="'+fStyle+'" placeholder="Ej: Andrés Barrios"></div>'
+      +'<div class="mf" style="margin:0;"><span>Usuario del sistema</span><input id="uUser" value="'+esc(u?u.usuario:'')+'" style="'+(isNew?fStyle:fDis)+'" '+(isNew?'placeholder="primernombre.apellido"':'disabled')+'></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">'
+      +'<div class="mf" style="margin:0;"><span>Número de cédula</span><input id="uCed" value="'+esc(u?u.cedula:'')+'" style="'+fStyle+'" placeholder="Cédula"></div>'
+      +'<div class="mf" style="margin:0;"><span>Contraseña</span><input id="uPass" type="text" value="'+esc(u?u.contrasena:'')+'" style="'+fStyle+'" placeholder="Vacío = usar cédula"></div>'
     +'</div>'
 
-    // Cédula + contraseña
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
-      +'<div class="mf"><span>Número de cédula</span><input id="uCed" value="'+esc(u?u.cedula:'')+'" style="'+fStyle+'" placeholder="Número de cédula"></div>'
-      +'<div class="mf"><span>Contraseña</span><input id="uPass" type="text" value="'+esc(u?u.contrasena:(u?u.cedula:''))+'" style="'+fStyle+'" placeholder="Dejar vacío = usar cédula"></div>'
+    +'<div style="border-top:1px solid #f1f5f9;margin-bottom:16px;"></div>'
+
+    // Equipos
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+      +'<div class="section-lbl" style="margin:0;">Equipos / Perfiles <span style="color:#0284c7;font-size:9px;font-weight:700;text-transform:none;letter-spacing:0;">elige uno o varios</span></div>'
+      +'<span id="equipoCount" style="font-size:11px;color:#0284c7;font-weight:700;">'+curEquipos.length+' seleccionado(s)</span>'
     +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px;" id="equipoGrid">'+equipoChecks+'</div>'
 
-    // Rol
-    +'<div class="mf"><span>Rol y nivel de acceso</span><select id="uRol" style="'+fStyle+'display:block;">'+rolesOpts+'</select></div>'
+    +'<div style="border-top:1px solid #f1f5f9;margin-bottom:16px;"></div>'
 
-    // Rol description box
-    +'<div id="uRolDesc" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;padding:10px 14px;font-size:12.5px;color:#0369a1;margin-top:-8px;margin-bottom:16px;line-height:1.6;"></div>'
+    // Permisos por herramienta
+    +'<div class="section-lbl" style="margin-bottom:10px;">Permisos por herramienta</div>'
+    + qsRow
+    + matrixHTML
 
-    // Acceso activo
-    +'<div style="display:flex;align-items:center;gap:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:4px;">'
-      +'<label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">'
+    +'<div style="border-top:1px solid #f1f5f9;margin:16px 0;"></div>'
+
+    // Toggle acceso
+    +'<div class="section-lbl" style="margin-bottom:10px;">Estado de acceso</div>'
+    +'<div style="display:flex;align-items:center;gap:14px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:11px;padding:13px 16px;">'
+      +'<label style="position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0;">'
         +'<input type="checkbox" id="uActivo" '+(isActive?'checked':'')+' style="opacity:0;width:0;height:0;">'
-        +'<span id="uActivoSlider" style="position:absolute;cursor:pointer;inset:0;background:'+(isActive?'#059669':'#94a3b8')+';border-radius:24px;transition:.2s;"></span>'
-        +'<span id="uActivoKnob" style="position:absolute;height:18px;width:18px;left:'+(isActive?'23px':'3px')+';bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.25);"></span>'
+        +'<span id="uSlider" style="position:absolute;cursor:pointer;inset:0;background:'+(isActive?'#059669':'#94a3b8')+';border-radius:26px;transition:.2s;"></span>'
+        +'<span id="uKnob" style="position:absolute;height:20px;width:20px;left:'+(isActive?'25px':'3px')+';bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.25);"></span>'
       +'</label>'
       +'<div>'
-        +'<div style="font-size:13px;font-weight:700;color:#0f172a;">Acceso al portal</div>'
-        +'<div id="uActivoLabel" style="font-size:11.5px;color:#64748b;">'+(isActive?'El usuario puede iniciar sesión':'Acceso desactivado — no puede ingresar')+'</div>'
+        +'<div style="font-size:13px;font-weight:800;color:#0f172a;" id="uActivoTitle">'+(isActive?'✅ Acceso habilitado':'🔒 Acceso desactivado')+'</div>'
+        +'<div style="font-size:11.5px;color:#64748b;" id="uActivoLabel">'+(isActive?'El usuario puede iniciar sesión.':'No puede ingresar al portal.')+'</div>'
       +'</div>'
     +'</div>'
 
     +'</div>'
     +'<div class="modal-foot">'
       +'<div style="display:flex;gap:8px;">'
-        +(!isNew&&u&&u.usuario!==SUPER_ADMIN.usuario?'<button class="btn btn-sm" style="color:#dc2626;border-color:#dc2626;" onclick="eliminarUsuario(\''+esc(u.usuario)+'\')">🗑 Eliminar</button>':'')
+        +(!isNew&&u&&u.usuario!==SUPER_ADMIN.usuario?'<button class="btn btn-sm" style="color:#dc2626;border-color:#dc2626;" onclick="eliminarUsuario(\''+esc(u?u.usuario:'')+'\')">🗑 Eliminar</button>':'')
       +'</div>'
       +'<div style="display:flex;gap:8px;">'
         +'<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
@@ -1728,52 +2016,76 @@ function modalUsuario(usuarioKey){
 
   openModal();
 
-  // Rol description helper
-  const rolDescs={
-    admin:'Acceso total: puede ver y editar todo el portal, gestionar usuarios, organigrama y herramientas.',
-    tecnico:'Acceso técnico: puede ver y editar proyectos, herramientas del equipo técnico GIM.',
-    juridico:'Acceso jurídico: puede ver y editar documentos y trámites del equipo jurídico.',
-    financiero:'Acceso financiero: puede ver y editar información presupuestal y financiera.',
-    lectura:'Solo lectura: puede ver el portal pero no puede crear ni modificar nada.'
+  // Quick-set all perms
+  window.setAllPerms = function(permKey){
+    document.querySelectorAll('.perm-radio').forEach(function(r){
+      r.checked = (r.value === permKey);
+      updatePermRow(r);
+    });
   };
-  const updateRolDesc=function(){
-    const sel=document.getElementById('uRol');
-    const desc=document.getElementById('uRolDesc');
-    if(sel&&desc) desc.textContent=rolDescs[sel.value]||'';
-  };
-  document.getElementById('uRol')?.addEventListener('change', updateRolDesc);
-  updateRolDesc();
+
+  // Highlight selected cell in each row
+  function updatePermRow(radio){
+    const tool = radio.dataset.tool;
+    const row = radio.closest('tr');
+    if(!row) return;
+    row.querySelectorAll('td').forEach(function(td){ td.style.background='transparent'; });
+    if(radio.checked){
+      const p = PERM_OPTS.find(function(x){return x.key===radio.value;});
+      if(p) radio.closest('td').style.background = p.bg;
+    }
+  }
+  document.querySelectorAll('.perm-radio').forEach(function(r){
+    r.addEventListener('change', function(){ updatePermRow(this); });
+  });
+
+  // Equipo checkboxes live
+  document.querySelectorAll('input[name="uEquipo"]').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      const v=EQUIPOS[this.value]; if(!v) return;
+      const lbl=document.getElementById('eq_lbl_'+this.value);
+      if(lbl){ lbl.style.borderColor=this.checked?v.color:'#e2e8f0'; lbl.style.background=this.checked?v.color+'10':'#fff'; lbl.querySelector('span:last-child').style.color=this.checked?v.color:'#374151'; }
+      const cnt=document.getElementById('equipoCount');
+      if(cnt) cnt.textContent=document.querySelectorAll('input[name="uEquipo"]:checked').length+' seleccionado(s)';
+    });
+  });
 
   // Toggle activo
   document.getElementById('uActivo')?.addEventListener('change',function(){
-    const s=document.getElementById('uActivoSlider');
-    const k=document.getElementById('uActivoKnob');
-    const l=document.getElementById('uActivoLabel');
-    if(this.checked){
-      s.style.background='#059669'; k.style.left='23px';
-      l.textContent='El usuario puede iniciar sesión';
-    } else {
-      s.style.background='#94a3b8'; k.style.left='3px';
-      l.textContent='Acceso desactivado — no puede ingresar';
-    }
+    const s=document.getElementById('uSlider'), k=document.getElementById('uKnob');
+    const t=document.getElementById('uActivoTitle'), l=document.getElementById('uActivoLabel');
+    if(this.checked){ s.style.background='#059669'; k.style.left='25px'; t.textContent='✅ Acceso habilitado'; l.textContent='El usuario puede iniciar sesión.'; }
+    else { s.style.background='#94a3b8'; k.style.left='3px'; t.textContent='🔒 Acceso desactivado'; l.textContent='No puede ingresar al portal.'; }
   });
 
   // Save
-  document.getElementById('uSave')?.addEventListener('click',async function(){
-    const nombre=(document.getElementById('uNom')?.value||'').trim();
-    const cedula=(document.getElementById('uCed')?.value||'').trim();
-    const usuarioVal=isNew?(document.getElementById('uUser')?.value||'').trim().toLowerCase():usuarioKey;
-    const contrasena=(document.getElementById('uPass')?.value||'').trim()||cedula;
-    const rol=document.getElementById('uRol')?.value||'lectura';
-    const activo=document.getElementById('uActivo')?.checked!==false;
-    if(!nombre||!usuarioVal){ toast('Nombre y usuario son obligatorios'); return; }
-    if(usuarioVal===SUPER_ADMIN.usuario){ toast('El admin maestro no se puede editar desde aquí'); return; }
-    if(isNew&&ST.usuarios.find(function(x){return x.usuario===usuarioVal;})){ toast('Ese usuario ya existe'); return; }
-    const entry=Object.assign({}, u||{}, { usuario:usuarioVal, nombre, cedula, contrasena, rol, activo });
-    if(!isNew){
-      const idx=ST.usuarios.findIndex(function(x){return x.usuario===usuarioKey;});
-      if(idx>=0) ST.usuarios[idx]=entry; else ST.usuarios.push(entry);
-    } else { ST.usuarios.push(entry); }
+  document.getElementById('uSave')?.addEventListener('click', async function(){
+    const nombre     = (document.getElementById('uNom')?.value||'').trim();
+    const cedula     = (document.getElementById('uCed')?.value||'').trim();
+    const usuarioVal = isNew ? (document.getElementById('uUser')?.value||'').trim().toLowerCase() : usuarioKey;
+    const contrasena = (document.getElementById('uPass')?.value||'').trim() || cedula;
+    const equiposSel = Array.from(document.querySelectorAll('input[name="uEquipo"]:checked')).map(function(c){return c.value;});
+    const activo     = document.getElementById('uActivo')?.checked !== false;
+
+    // Collect permisos matrix
+    const permisos = {};
+    Object.keys(HERRAMIENTAS_PERMS).forEach(function(tk){
+      const r = document.querySelector('input[name="perm_'+tk+'"]:checked');
+      permisos[tk] = r ? r.value : 'ninguno';
+    });
+
+    // Derive global nivel from permisos (for backward compat display)
+    const vals = Object.values(permisos);
+    const nivel = vals.indexOf('admin')>=0 ? 'admin' : vals.indexOf('editor')>=0 ? 'editor' : vals.indexOf('lectura')>=0 ? 'lectura' : 'ninguno';
+    const rol = nivel;
+
+    if(!nombre||!usuarioVal){ toast('⚠️ Nombre y usuario son obligatorios'); return; }
+    if(usuarioVal===SUPER_ADMIN.usuario){ toast('El admin maestro no se edita desde aquí'); return; }
+    if(isNew && ST.usuarios.find(function(x){return x.usuario===usuarioVal;})){ toast('Ese usuario ya existe'); return; }
+
+    const entry = Object.assign({}, u||{}, { usuario:usuarioVal, nombre, cedula, contrasena, equipos:equiposSel, equipo:equiposSel[0]||'otro', permisos, nivel, rol, activo });
+    if(!isNew){ const idx=ST.usuarios.findIndex(function(x){return x.usuario===usuarioKey;}); if(idx>=0) ST.usuarios[idx]=entry; else ST.usuarios.push(entry); }
+    else ST.usuarios.push(entry);
     await savePortalData(); closeModal(); setView('admin'); toast('✅ Usuario guardado correctamente');
   });
 }
