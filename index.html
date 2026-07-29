@@ -1666,38 +1666,115 @@ function renderAdmin(mc){
 }
 
 function modalUsuario(usuarioKey){
-  const u=usuarioKey ? ST.usuarios.find(x=>x.usuario===usuarioKey) : {};
+  const u=usuarioKey ? ST.usuarios.find(x=>x.usuario===usuarioKey) : null;
   const isNew=!usuarioKey;
-  document.getElementById('modal').innerHTML=`
-    <div class="modal-head"><h3>${isNew?'Nuevo usuario':'Editar: '+esc(u?.nombre||usuarioKey)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div class="modal-body">
-      <div class="form-row">
-        <div class="field"><label>Nombre completo</label><input id="uNom" value="${esc(u?.nombre||'')}"></div>
-        <div class="field"><label>Usuario (primernombre.apellido)</label><input id="uUser" value="${esc(u?.usuario||'')}" ${!isNew?'disabled':''}></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Cédula</label><input id="uCed" value="${esc(u?.cedula||'')}"></div>
-        <div class="field"><label>Contraseña inicial</label><input id="uPass" value="${esc(u?.contrasena||u?.cedula||'')}" placeholder="Dejar en blanco = usar cédula"></div>
-      </div>
-      <div class="field"><label>Rol</label><select id="uRol">
-        ${Object.entries(ROLES).map(([k,v])=>'<option value="'+k+'" '+(u?.rol===k?'selected':'')+'>'+v.label+'</option>').join('')}
-      </select></div>
-    </div>
-    <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="uSave">Guardar</button></div>`;
+  const fStyle='width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;color:#0f172a;background:#f8fafc;font-family:inherit;box-sizing:border-box;';
+
+  // Build roles options
+  let rolesOpts='';
+  Object.entries(ROLES).forEach(function(entry){
+    const k=entry[0], v=entry[1];
+    rolesOpts+='<option value="'+k+'" '+(u&&u.rol===k?'selected':'')+'>'+v.label+'</option>';
+  });
+
+  // Build active checkbox
+  const isActive=(u&&u.activo!==false);
+
+  document.getElementById('modal').innerHTML=''
+    +'<div class="modal-head"><h3>'+(isNew?'Nuevo usuario':'Editar: '+esc(u?u.nombre:usuarioKey||''))+'</h3><button class="modal-close" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body">'
+
+    // Nombre + usuario
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      +'<div class="mf"><span>Nombre completo</span><input id="uNom" value="'+esc(u?u.nombre:'')+'" style="'+fStyle+'" placeholder="Ej: María López"></div>'
+      +'<div class="mf"><span>Usuario del sistema</span><input id="uUser" value="'+esc(u?u.usuario:'')+'" style="'+fStyle+'" '+(isNew?'placeholder="primernombre.apellido"':'disabled style="'+fStyle+'background:#f1f5f9;color:#64748b;cursor:not-allowed;"')+'></div>'
+    +'</div>'
+
+    // Cédula + contraseña
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      +'<div class="mf"><span>Número de cédula</span><input id="uCed" value="'+esc(u?u.cedula:'')+'" style="'+fStyle+'" placeholder="Número de cédula"></div>'
+      +'<div class="mf"><span>Contraseña</span><input id="uPass" type="text" value="'+esc(u?u.contrasena:(u?u.cedula:''))+'" style="'+fStyle+'" placeholder="Dejar vacío = usar cédula"></div>'
+    +'</div>'
+
+    // Rol
+    +'<div class="mf"><span>Rol y nivel de acceso</span><select id="uRol" style="'+fStyle+'display:block;">'+rolesOpts+'</select></div>'
+
+    // Rol description box
+    +'<div id="uRolDesc" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;padding:10px 14px;font-size:12.5px;color:#0369a1;margin-top:-8px;margin-bottom:16px;line-height:1.6;"></div>'
+
+    // Acceso activo
+    +'<div style="display:flex;align-items:center;gap:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:4px;">'
+      +'<label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">'
+        +'<input type="checkbox" id="uActivo" '+(isActive?'checked':'')+' style="opacity:0;width:0;height:0;">'
+        +'<span id="uActivoSlider" style="position:absolute;cursor:pointer;inset:0;background:'+(isActive?'#059669':'#94a3b8')+';border-radius:24px;transition:.2s;"></span>'
+        +'<span id="uActivoKnob" style="position:absolute;height:18px;width:18px;left:'+(isActive?'23px':'3px')+';bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.25);"></span>'
+      +'</label>'
+      +'<div>'
+        +'<div style="font-size:13px;font-weight:700;color:#0f172a;">Acceso al portal</div>'
+        +'<div id="uActivoLabel" style="font-size:11.5px;color:#64748b;">'+(isActive?'El usuario puede iniciar sesión':'Acceso desactivado — no puede ingresar')+'</div>'
+      +'</div>'
+    +'</div>'
+
+    +'</div>'
+    +'<div class="modal-foot">'
+      +'<div style="display:flex;gap:8px;">'
+        +(!isNew&&u&&u.usuario!==SUPER_ADMIN.usuario?'<button class="btn btn-sm" style="color:#dc2626;border-color:#dc2626;" onclick="eliminarUsuario(\''+esc(u.usuario)+'\')">🗑 Eliminar</button>':'')
+      +'</div>'
+      +'<div style="display:flex;gap:8px;">'
+        +'<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+        +'<button class="btn btn-primary" id="uSave">💾 Guardar cambios</button>'
+      +'</div>'
+    +'</div>';
+
   openModal();
-  document.getElementById('uSave').addEventListener('click',async()=>{
-    const nombre=document.getElementById('uNom').value.trim();
-    const cedula=document.getElementById('uCed').value.trim();
-    const usuario=isNew?document.getElementById('uUser').value.trim().toLowerCase():usuarioKey;
-    const contrasena=document.getElementById('uPass').value.trim()||cedula;
-    const rol=document.getElementById('uRol').value;
-    if(!nombre||!usuario){ toast('Nombre y usuario son obligatorios'); return; }
-    if(usuario===SUPER_ADMIN.usuario){ toast('No se puede modificar el admin maestro desde aquí'); return; }
-    if(isNew&&ST.usuarios.find(u=>u.usuario===usuario)){ toast('Ese usuario ya existe'); return; }
-    const entry={...(u||{}), usuario, nombre, cedula, contrasena, rol, activo: u?.activo!==false };
-    if(!isNew){ const idx=ST.usuarios.findIndex(x=>x.usuario===usuarioKey); if(idx>=0) ST.usuarios[idx]=entry; }
-    else ST.usuarios.push(entry);
-    await savePortalData(); closeModal(); setView('admin'); toast('Usuario guardado ✓');
+
+  // Rol description helper
+  const rolDescs={
+    admin:'Acceso total: puede ver y editar todo el portal, gestionar usuarios, organigrama y herramientas.',
+    tecnico:'Acceso técnico: puede ver y editar proyectos, herramientas del equipo técnico GIM.',
+    juridico:'Acceso jurídico: puede ver y editar documentos y trámites del equipo jurídico.',
+    financiero:'Acceso financiero: puede ver y editar información presupuestal y financiera.',
+    lectura:'Solo lectura: puede ver el portal pero no puede crear ni modificar nada.'
+  };
+  const updateRolDesc=function(){
+    const sel=document.getElementById('uRol');
+    const desc=document.getElementById('uRolDesc');
+    if(sel&&desc) desc.textContent=rolDescs[sel.value]||'';
+  };
+  document.getElementById('uRol')?.addEventListener('change', updateRolDesc);
+  updateRolDesc();
+
+  // Toggle activo
+  document.getElementById('uActivo')?.addEventListener('change',function(){
+    const s=document.getElementById('uActivoSlider');
+    const k=document.getElementById('uActivoKnob');
+    const l=document.getElementById('uActivoLabel');
+    if(this.checked){
+      s.style.background='#059669'; k.style.left='23px';
+      l.textContent='El usuario puede iniciar sesión';
+    } else {
+      s.style.background='#94a3b8'; k.style.left='3px';
+      l.textContent='Acceso desactivado — no puede ingresar';
+    }
+  });
+
+  // Save
+  document.getElementById('uSave')?.addEventListener('click',async function(){
+    const nombre=(document.getElementById('uNom')?.value||'').trim();
+    const cedula=(document.getElementById('uCed')?.value||'').trim();
+    const usuarioVal=isNew?(document.getElementById('uUser')?.value||'').trim().toLowerCase():usuarioKey;
+    const contrasena=(document.getElementById('uPass')?.value||'').trim()||cedula;
+    const rol=document.getElementById('uRol')?.value||'lectura';
+    const activo=document.getElementById('uActivo')?.checked!==false;
+    if(!nombre||!usuarioVal){ toast('Nombre y usuario son obligatorios'); return; }
+    if(usuarioVal===SUPER_ADMIN.usuario){ toast('El admin maestro no se puede editar desde aquí'); return; }
+    if(isNew&&ST.usuarios.find(function(x){return x.usuario===usuarioVal;})){ toast('Ese usuario ya existe'); return; }
+    const entry=Object.assign({}, u||{}, { usuario:usuarioVal, nombre, cedula, contrasena, rol, activo });
+    if(!isNew){
+      const idx=ST.usuarios.findIndex(function(x){return x.usuario===usuarioKey;});
+      if(idx>=0) ST.usuarios[idx]=entry; else ST.usuarios.push(entry);
+    } else { ST.usuarios.push(entry); }
+    await savePortalData(); closeModal(); setView('admin'); toast('✅ Usuario guardado correctamente');
   });
 }
 function editUsuario(usuarioKey){ modalUsuario(usuarioKey); }
