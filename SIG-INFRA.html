@@ -523,9 +523,12 @@ const fmtTS=iso=>{try{const d=new Date(iso);return d.toLocaleDateString('es-CO',
 const fmtDate=iso=>{try{return new Date(iso).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});}catch(e){return iso||'—';}};
 const uid=()=>'p'+Math.random().toString(36).slice(2,10);
 const isAdmin=()=>SES?.id===ADMIN_ID;
-const canEditProj=()=>SES&&(isAdmin()||
-  (['tecnico','juridico','financiero'].includes(SES.rol)&&
-   (SES.permisos?.proyectosEditar!==false)));
+const canEditProj=()=>{
+  if(!SES) return false;
+  if(isAdmin()) return true;
+  if(['tecnico','juridico','financiero'].includes(SES.rol)) return true;
+  return false;
+};
 
 function toast(msg,type=''){
   const c=document.getElementById('toast');
@@ -574,15 +577,20 @@ function logAudit(accion,detalle,tipo='accion'){
 
 // ══ STORAGE ══
 function save(){
+  const ts=Date.now();
   try {
     localStorage.setItem(DK,JSON.stringify(PROJ));
     localStorage.setItem(AK,JSON.stringify(USERS));
     localStorage.setItem('sig_audit',JSON.stringify(AUDIT));
+    localStorage.setItem('sig_ts',String(ts));
   } catch(e) {
-    toast('⚠️ Error guardando localmente: '+e.message,'error');
+    toast('⚠️ Error al guardar: '+e.message,'error');
     return;
   }
-  const allData={projects:PROJ,users:USERS,audit:AUDIT,lastSaved:nowISO()};
+  // Update UI indicator
+  var el=document.getElementById('lastSavedAt');
+  if(el)el.textContent='✅ '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  const allData={projects:PROJ,users:USERS,audit:AUDIT,lastSaved:nowISO(),ts:ts};
   if(SCRIPT_URL){
     remoteSave(allData).then(function(){
       // Update last-saved indicator
@@ -715,6 +723,15 @@ function doLogout(){
 }
 
 // ══ INACTIVITY ══
+// Ctrl+S shortcut to save open modal
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){
+    e.preventDefault();
+    var btn=document.getElementById('mSave');
+    if(btn) btn.click();
+  }
+});
+
 function startInactivity(){
   clearInactivity();
   inactWarnTimer=setTimeout(()=>{
@@ -789,14 +806,22 @@ function startApp(){
   if(SCRIPT_URL){
     remoteLoad().then(d=>{
       if(d&&d.projects&&d.projects.length){
-        PROJ=d.projects;
-        if(d.users&&d.users.length)USERS=d.users;
-        if(d.audit&&d.audit.length)AUDIT=d.audit;
-        localStorage.setItem(DK,JSON.stringify(PROJ));
-        localStorage.setItem(AK,JSON.stringify(USERS));
-        localStorage.setItem('sig_audit',JSON.stringify(AUDIT));
-        setPage(PAGE);
-        toast('☁️ Datos sincronizados con Drive','success');
+        // Only overwrite local data if Drive is strictly newer
+        var localTs=parseInt(localStorage.getItem('sig_ts')||'0');
+        var driveTs=d.ts||0;
+        if(driveTs>localTs){
+          PROJ=d.projects;
+          if(d.users&&d.users.length)USERS=d.users;
+          if(d.audit&&d.audit.length)AUDIT=d.audit;
+          localStorage.setItem(DK,JSON.stringify(PROJ));
+          localStorage.setItem(AK,JSON.stringify(USERS));
+          localStorage.setItem('sig_audit',JSON.stringify(AUDIT));
+          localStorage.setItem('sig_ts',String(driveTs));
+          setPage(PAGE);
+          toast('☁️ Datos sincronizados desde Drive','success');
+        } else {
+          toast('☁️ Drive conectado — datos locales más recientes','success');
+        }
       }
     }).catch(()=>{
       toast('🟡 Sin conexión a Drive — usando datos locales');
@@ -1524,15 +1549,14 @@ function saveProj(orig,isNew){
   orig.historial.unshift({fecha:nowISO(),persona:SES?.usuario,nombre:SES?.nombre,rol:SES?.rol,accion});
   if(orig.historial.length>50)orig.historial.length=50;
   if(isNew)PROJ.push(orig);
-  logAudit(isNew?'Creó proyecto: '+nombre:accion,nombre);
+  logAudit(isNew?'Creo proyecto: '+nombre:accion,nombre);
   save();
   closeModal();
-  // Refresh pages
   try{if(typeof renderProyectos==='function')renderProyectos();}catch(e){}
-  toast(isNew?'Proyecto creado':'Guardado','success');
+  toast(isNew?'✅ Proyecto creado':'✅ Guardado correctamente','success');
   }catch(err){
     console.error('saveProj error:',err);
-    toast('Error al guardar: '+err.message,'error');
+    toast('❌ Error al guardar: '+err.message,'error');
   }
 }
 
