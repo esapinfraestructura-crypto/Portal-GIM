@@ -1538,17 +1538,25 @@ function saveProj(orig,isNew){
   const accion=isNew?'Creó el proyecto':(cambios.length?cambios.join(' · '):'Actualizó proyecto');
   orig.historial.unshift({fecha:nowISO(),persona:SES?.usuario,nombre:SES?.nombre,rol:SES?.rol,accion});
   if(orig.historial.length>50)orig.historial.length=50;
-  if(isNew)PROJ.push(orig);
+  if(isNew){
+    PROJ.push(orig);
+  } else {
+    // CRÍTICO: actualizar PROJ directamente por índice (orig es una copia, no referencia)
+    const projIdx=PROJ.findIndex(function(p){return p.id===orig.id;});
+    if(projIdx>=0){
+      PROJ[projIdx]=orig;
+    } else {
+      toast('❌ Error: proyecto no encontrado en lista (id='+orig.id+')','error');
+      return;
+    }
+  }
   logAudit(isNew?'Creo proyecto: '+nombre:accion,nombre);
   save();
   closeModal();
   try{
-    if(typeof renderProyectos==='function'){
-      renderProyectos();
-    }
+    if(typeof renderProyectos==='function') renderProyectos();
   }catch(e){
     console.error('renderProyectos error:',e);
-    toast('⚠️ Guardado, pero error al refrescar vista: '+e.message,'warn');
   }
   const confirmMsg=isNew?'✅ Proyecto creado':'✅ Guardado: avance '+orig.avance+'%'+(orig.tecnico?' · '+orig.tecnico.split(' ')[0]:'');
   toast(confirmMsg,'success');
