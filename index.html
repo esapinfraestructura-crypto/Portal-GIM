@@ -1703,70 +1703,63 @@ function adminTab(tab){
 }
 
 function renderAdminUsuarios(c){
-  const isSA=(SES.user===SUPER_ADMIN.usuario||SES.rol==='admin');
-  const activos=ST.usuarios.filter(function(u){return u.activo!==false;}).length+1;
-  const inactivos=ST.usuarios.filter(function(u){return u.activo===false;}).length;
+  try{
+    const isA=(SES.user===SUPER_ADMIN.usuario||SES.rol==='admin');
+    const todos=ST.usuarios||[];
+    const activos=todos.filter(function(u){return u.activo!==false;});
+    const inactivos=todos.filter(function(u){return u.activo===false;});
 
-  function buildRow(u, forceActive){
-    const isSArow=u.usuario===SUPER_ADMIN.usuario;
-    var firstEq=(Array.isArray(u.equipos)&&u.equipos[0])||u.equipo||'';
-    var eqInfo=(EQUIPOS&&EQUIPOS[firstEq])||{color:'#64748b',icon:'👤'};
-    var nivelInfo=(NIVELES&&NIVELES[u.nivel||u.rol])||{label:u.nivel||u.rol||'—',color:'#64748b'};
-    var activo=forceActive||(u.activo!==false);
-    var ini=(u.nombre||'?')[0].toUpperCase();
-    // Build equipo+nivel badges
-    var badges='';
-    var eqs=Array.isArray(u.equipos)&&u.equipos.length?u.equipos:(u.equipo?[u.equipo]:[]);
-    eqs.forEach(function(ek){var ei=EQUIPOS[ek]||{label:ek,color:'#64748b',icon:'👤'};badges+='<span style="display:inline-flex;align-items:center;gap:3px;background:'+ei.color+'15;color:'+ei.color+';border:1px solid '+ei.color+'30;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:700;">'+ei.icon+' '+ei.label+'</span>';});
-    badges+='<span style="display:inline-flex;align-items:center;gap:3px;background:'+(nivelInfo.color||'#64748b')+'15;color:'+(nivelInfo.color||'#64748b')+';border:1px solid '+(nivelInfo.color||'#64748b')+'30;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:700;">⚡ '+nivelInfo.label+'</span>';
-    // Permisos summary
-    var permBadges='';
-    if(u.permisos){
-      getToolRegistry().forEach(function(tr){
-        var p=getUserPerm(u,tr.key);
-        if(p&&p!=='ninguno'){var po=PERM_OPTS.find(function(x){return x.key===p;})||{icon:'',color:'#64748b'};permBadges+='<span title="'+tr.label+'" style="font-size:10px;background:'+po.color+'15;color:'+po.color+';border:1px solid '+po.color+'25;border-radius:5px;padding:1px 6px;font-weight:600;">'+tr.icon+' '+po.icon+'</span>';}
+    function fila(u){
+      const isSArow=(u.usuario===SUPER_ADMIN.usuario);
+      const rolInfo=ROLES[u.nivel||u.rol]||ROLES.lectura||{label:u.rol||'?',color:'#64748b',badge:'rb-lectura'};
+      const activo=(u.activo!==false);
+      const ini=(u.nombre||'?')[0].toUpperCase();
+      const eqs=Array.isArray(u.equipos)&&u.equipos.length?u.equipos:(u.equipo?[u.equipo]:[]);
+      let badges='';
+      eqs.forEach(function(ek){
+        const ei=(EQUIPOS&&EQUIPOS[ek])||{label:ek,color:'#64748b',icon:''};
+        badges+='<span style="font-size:10px;background:'+ei.color+'15;color:'+ei.color+';border:1px solid '+ei.color+'30;border-radius:999px;padding:1px 7px;font-weight:700;margin-right:3px;">'+esc(ei.label||ek)+'</span>';
       });
-    } else { permBadges='<span style="font-size:10px;color:#94a3b8;">Sin permisos configurados</span>'; }
-    var btns=isSArow
-      ?'<span style="font-size:11px;color:var(--muted);background:#f1f5f9;padding:3px 10px;border-radius:6px;font-weight:700;">Admin maestra</span>'
-      :'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
-        +'<button class="btn btn-sm" style="font-size:11.5px;padding:4px 12px;" onclick="editUsuario(\''+esc(u.usuario)+'\')">✏️ Editar</button>'
-        +'<button class="btn btn-sm" style="font-size:11.5px;padding:4px 12px;color:'+(activo?'#dc2626':'#059669')+';border-color:'+(activo?'#dc2626':'#059669')+';" onclick="toggleAcceso(\''+esc(u.usuario)+'\')">'+(activo?'🔒':'✅')+'</button>'
-      +'</div>';
-    return '<div class="user-row" style="opacity:'+(activo?'1':'.6')+';">'
-      +'<div class="user-avatar" style="background:'+eqInfo.color+'18;color:'+eqInfo.color+';font-weight:800;font-size:16px;">'+ini+'</div>'
-      +'<div style="flex:1;min-width:0;">'
-        +'<div style="font-weight:800;font-size:13.5px;color:var(--ink);">'+esc(u.nombre||u.usuario)
-          +(!activo?' <span style="font-size:9.5px;color:#dc2626;font-weight:700;background:#fef2f2;padding:1px 5px;border-radius:4px;">Sin acceso</span>':'')
+      badges+='<span style="font-size:10px;background:'+rolInfo.color+'15;color:'+rolInfo.color+';border:1px solid '+rolInfo.color+'30;border-radius:999px;padding:1px 7px;font-weight:700;">'+esc(rolInfo.label)+'</span>';
+      let btns='';
+      if(isSArow){
+        btns='<span style="font-size:11px;color:var(--muted);background:#f1f5f9;padding:3px 10px;border-radius:6px;font-weight:700;">Admin maestra</span>';
+      } else {
+        btns='<button class="btn btn-sm" style="font-size:11.5px;padding:4px 11px;" onclick="editUsuario(\''+(esc(u.usuario))+'\')">✏️ Editar</button>';
+        btns+='<button class="btn btn-sm" style="font-size:11.5px;padding:4px 11px;color:'+(activo?'#dc2626':'#059669')+';border-color:'+(activo?'#dc2626':'#059669')+';" onclick="toggleAcceso(\''+(esc(u.usuario))+'\')">'+(activo?'🔒':'✅')+'</button>';
+      }
+      return '<div class="user-row" style="opacity:'+(activo?'1':'.6')+';">'
+        +'<div class="user-avatar" style="background:'+rolInfo.color+'15;color:'+rolInfo.color+';">'+ini+'</div>'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-weight:800;font-size:13px;color:var(--ink);">'+esc(u.nombre||u.usuario)
+            +(!activo?' <span style="font-size:9px;color:#dc2626;background:#fef2f2;padding:1px 5px;border-radius:4px;font-weight:700;">Sin acceso</span>':'')
+          +'</div>'
+          +'<div style="font-size:11.5px;color:#64748b;margin-top:1px;">'+esc(u.usuario)+' · '+esc(u.cedula||'—')+'</div>'
+          +'<div style="margin-top:5px;">'+badges+'</div>'
         +'</div>'
-        +'<div style="font-size:11.5px;color:#64748b;margin-top:2px;">👤 '+esc(u.usuario)+' · 🪪 '+esc(u.cedula||'—')+' · 🔑 <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:10.5px;color:#475569;">'+esc(u.contrasena||'—')+'</code></div>'
-        +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">'+badges+'</div>'
-        +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;padding-top:5px;border-top:1px solid #f1f5f9;">'+permBadges+'</div>'
-      +'</div>'
-      +'<div style="flex-shrink:0;">'+btns+'</div>'
-    +'</div>';
-  }
+        +'<div style="flex-shrink:0;">'+btns+'</div>'
+      +'</div>';
+    }
 
-  var activosHTML = ST.usuarios.filter(function(u){return u.activo!==false;}).map(function(u){return buildRow(u,false);}).join('');
-  var inactivosHTML = ST.usuarios.filter(function(u){return u.activo===false;}).map(function(u){return buildRow(u,false);}).join('');
+    // Super admin row
+    const saRow=fila(Object.assign({},SUPER_ADMIN,{activo:true}));
+    const activoRows=activos.map(fila).join('');
+    const inactivoRows=inactivos.map(fila).join('');
 
-  c.innerHTML = ''
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'
-      +'<div style="font-size:12.5px;color:var(--muted);"><span style="color:#059669;font-weight:700;">'+activos+' con acceso</span> · <span style="color:#dc2626;font-weight:700;">'+inactivos+' sin acceso</span></div>'
-      +(isAdmin?'<button class="btn btn-primary" onclick="modalUsuario(null)">+ Nuevo usuario</button>':'')
+    c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'
+      +'<div style="font-size:12.5px;color:var(--muted);"><span style="color:#059669;font-weight:700;">'+(activos.length+1)+' con acceso</span> · <span style="color:#dc2626;font-weight:700;">'+inactivos.length+' sin acceso</span></div>'
+      +(isA?'<button class="btn btn-primary" onclick="modalUsuario(null)">+ Nuevo usuario</button>':'')
     +'</div>'
     +'<div class="card" style="margin-bottom:12px;">'
-      +'<div class="card-head"><h4>🔓 Con acceso ('+activos+')</h4></div>'
-      +'<div class="card-body" style="padding:0 16px;">'
-        +buildRow(Object.assign({},SUPER_ADMIN,{activo:true}),true)
-        +(activosHTML||'<div style="padding:12px 0;color:var(--muted);font-size:13px;">Solo el admin maestro tiene acceso activo.</div>')
-      +'</div>'
+      +'<div class="card-head"><h4>🔓 Con acceso ('+(activos.length+1)+')</h4></div>'
+      +'<div class="card-body" style="padding:0 16px;">'+saRow+activoRows+'</div>'
     +'</div>'
-    +(inactivos>0
-      ?'<div class="card"><div class="card-head"><h4>🔒 Sin acceso ('+inactivos+')</h4></div><div class="card-body" style="padding:0 16px;">'+inactivosHTML+'</div></div>'
-      :'');
+    +(inactivos.length?'<div class="card"><div class="card-head"><h4>🔒 Sin acceso ('+inactivos.length+')</h4></div><div class="card-body" style="padding:0 16px;">'+inactivoRows+'</div></div>':'');
+  }catch(err){
+    c.innerHTML='<div style="padding:20px;color:#dc2626;">Error al cargar usuarios: '+esc(err.message)+'</div>';
+    console.error('renderAdminUsuarios:',err);
+  }
 }
-
 function renderAdminHerramientas(c){
   const isSA=(SES.user===SUPER_ADMIN.usuario||SES.rol==='admin');
   const tools=allTools();
