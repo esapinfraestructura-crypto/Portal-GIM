@@ -519,7 +519,7 @@ const ORG_DEFAULT = {
         { nombre:"Pío Camilo Ayure Flórez", cargo:"Apoyo Jurídico — Contratista", descripcion:"Apoya la gestión jurídica de los procesos contractuales, participando en la elaboración de estudios previos, minutas y demás documentos requeridos en las etapas precontractual y contractual.", foto:null, usuario:"pio.ayure" },
         { nombre:"Valentina Bernal Triana", cargo:"Apoyo Jurídico — Contratista", descripcion:"Presta servicios de apoyo jurídico al GIM, colaborando en la revisión documental, seguimiento de procesos contractuales y atención de requerimientos de orden legal.", foto:null, usuario:"valentina.bernal" },
         { nombre:"Alberto Serna Arellano", cargo:"Apoyo Jurídico — Contratista", descripcion:"Brinda apoyo jurídico especializado a la coordinación en materia contractual, contribuyendo a la correcta ejecución de los procesos de selección y contratación.", foto:null, usuario:"alberto.serna" },
-        { nombre:"Fátima (pendiente datos)", cargo:"Apoyo Jurídico — Contratista", descripcion:"Presta servicios de apoyo jurídico al Grupo de Infraestructura y Mantenimiento, colaborando en la revisión y seguimiento de los procesos contractuales.", foto:null, usuario:"fatima.juridico" }
+        { nombre:"Fátima Blanco", cargo:"Apoyo Jurídico — Contratista", descripcion:"Presta servicios de apoyo jurídico al Grupo de Infraestructura y Mantenimiento, colaborando en la revisión y seguimiento de los procesos contractuales.", foto:null, usuario:"fatima.blanco" }
       ]
     },
     {
@@ -1675,7 +1675,7 @@ function eliminarPersona(encoded){
 }
 
 function renderAdmin(mc){
-  const isSA = SES.usuario === SUPER_ADMIN.usuario;
+  const isSA = (SES.user === SUPER_ADMIN.usuario || SES.rol === 'admin');
   mc.innerHTML = ''
     +'<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;">'
       +['usuarios','herramientas_reg','administracion'].map(function(t,i){
@@ -1703,7 +1703,7 @@ function adminTab(tab){
 }
 
 function renderAdminUsuarios(c){
-  const isSA=SES.usuario===SUPER_ADMIN.usuario;
+  const isSA=(SES.user===SUPER_ADMIN.usuario||SES.rol==='admin');
   const activos=ST.usuarios.filter(function(u){return u.activo!==false;}).length+1;
   const inactivos=ST.usuarios.filter(function(u){return u.activo===false;}).length;
 
@@ -1753,7 +1753,7 @@ function renderAdminUsuarios(c){
   c.innerHTML = ''
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'
       +'<div style="font-size:12.5px;color:var(--muted);"><span style="color:#059669;font-weight:700;">'+activos+' con acceso</span> · <span style="color:#dc2626;font-weight:700;">'+inactivos+' sin acceso</span></div>'
-      +(isSA?'<button class="btn btn-primary" onclick="modalUsuario(null)">+ Nuevo usuario</button>':'')
+      +(isAdmin?'<button class="btn btn-primary" onclick="modalUsuario(null)">+ Nuevo usuario</button>':'')
     +'</div>'
     +'<div class="card" style="margin-bottom:12px;">'
       +'<div class="card-head"><h4>🔓 Con acceso ('+activos+')</h4></div>'
@@ -1768,7 +1768,7 @@ function renderAdminUsuarios(c){
 }
 
 function renderAdminHerramientas(c){
-  const isSA=SES.usuario===SUPER_ADMIN.usuario;
+  const isSA=(SES.user===SUPER_ADMIN.usuario||SES.rol==='admin');
   const tools=allTools();
   c.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'
     +'<div style="font-size:12.5px;color:var(--muted);">Estas herramientas aparecen automáticamente en la matriz de permisos de cada usuario.</div>'
@@ -1849,7 +1849,7 @@ function saveToolFromModal(){
 }
 
 function renderAdminSistema(c){
-  const isSA=SES.usuario===SUPER_ADMIN.usuario;
+  const isSA=(SES.user===SUPER_ADMIN.usuario||SES.rol==='admin');
   c.innerHTML = '<div class="card" style="margin-bottom:14px;">'
     +'<div class="card-head"><h4>🔑 Transferir administración maestra</h4></div>'
     +'<div class="card-body">'
