@@ -804,35 +804,16 @@ function startApp(){
   startInactivity();
   setPage('dashboard');
 
-  // Sincronización con Drive en segundo plano
+  // Drive: solo verificar conexión, NUNCA sobrescribir datos locales automáticamente
+  // El guardado sí va a Drive. La carga desde Drive es solo manual (botón en modal Drive).
   if(SCRIPT_URL){
-    remoteLoad().then(d=>{
+    remoteLoad().then(function(d){
       if(d&&d.projects&&d.projects.length){
-        var localTs=parseInt(localStorage.getItem('sig_ts')||'0');
-        var driveTs=parseInt(d.ts||0);
-        if(driveTs>localTs&&driveTs>0){
-          PROJ=d.projects;
-          if(d.users&&d.users.length)USERS=d.users;
-          if(d.audit&&d.audit.length)AUDIT=d.audit;
-          localStorage.setItem(DK,JSON.stringify(PROJ));
-          localStorage.setItem(AK,JSON.stringify(USERS));
-          localStorage.setItem('sig_audit',JSON.stringify(AUDIT));
-          localStorage.setItem('sig_ts',String(driveTs));
-          setPage(PAGE);
-          toast('☁️ Sincronizado desde Drive','success');
-        } else {
-          // Local is newer or same — DON'T overwrite
-          toast('✅ Drive conectado','success');
-        }
+        toast('✅ Drive conectado','success');
       }
-    }).catch(()=>{
-      toast('🟡 Sin conexión a Drive — usando datos locales');
+    }).catch(function(){
+      toast('🟡 Sin conexión a Drive','warn');
     });
-  } else {
-    // Recordar conectar Drive
-    setTimeout(()=>{
-      if(!SCRIPT_URL)toast('⚠️ Conecta Google Drive para asegurar tus datos (botón ☁️ en el sidebar)','warn');
-    },3000);
   }
 }
 
