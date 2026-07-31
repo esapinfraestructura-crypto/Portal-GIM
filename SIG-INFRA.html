@@ -432,8 +432,8 @@ table.tbl tr:hover td{background:var(--surface);}
       <div class="topbar">
         <div class="topbar-title" id="topbarTitle">Dashboard</div>
         <div class="topbar-actions">
-          <button class="icon-btn" title="Actualizar" onclick="refreshData()">🔄</button>
-          <button class="icon-btn" title="Notificaciones">🔔</button>
+          
+          <button class="icon-btn" title="Notificaciones">🔔</button><button class="icon-btn" title="Verificar datos guardados" onclick="debugStorage()" style="font-size:11px;padding:4px 7px;">🔍</button>
           <button class="icon-btn btn-primary" id="btnNuevoProyecto" style="display:none;padding:6px 14px;font-size:12.5px;font-weight:700;border-radius:8px;gap:5px;" onclick="openProjModal(null)">+ Nuevo</button>
         </div>
       </div>
@@ -526,7 +526,10 @@ const isAdmin=()=>SES?.id===ADMIN_ID;
 const canEditProj=()=>{
   if(!SES) return false;
   if(isAdmin()) return true;
-  if(['tecnico','juridico','financiero'].includes(SES.rol)) return true;
+  // Allow by rol
+  if(['tecnico','juridico','financiero','editor'].includes(SES.rol)) return true;
+  // Allow by explicit permission
+  if(SES.permisos&&(SES.permisos.proyectosEditar||SES.permisos.proyectos)) return true;
   return false;
 };
 
@@ -579,15 +582,19 @@ function logAudit(accion,detalle,tipo='accion'){
 function save(){
   const ts=Date.now();
   try {
-    localStorage.setItem(DK,JSON.stringify(PROJ));
-    localStorage.setItem(AK,JSON.stringify(USERS));
-    localStorage.setItem('sig_audit',JSON.stringify(AUDIT));
-    localStorage.setItem('sig_ts',String(ts));
+    var projStr=JSON.stringify(PROJ);
+    localStorage.setItem(DK, projStr);
+    localStorage.setItem(AK, JSON.stringify(USERS));
+    localStorage.setItem('sig_audit', JSON.stringify(AUDIT));
+    localStorage.setItem('sig_ts', String(ts));
+    // Verify write succeeded
+    var check=localStorage.getItem(DK);
+    if(!check) throw new Error('localStorage no guardó los datos');
   } catch(e) {
-    toast('⚠️ Error al guardar: '+e.message,'error');
+    toast('❌ Error al guardar en localStorage: '+e.message,'error');
+    console.error('save() error:',e);
     return;
   }
-  // Update UI indicator
   var el=document.getElementById('lastSavedAt');
   if(el)el.textContent='✅ '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
   const allData={projects:PROJ,users:USERS,audit:AUDIT,lastSaved:nowISO(),ts:ts};
@@ -1535,8 +1542,16 @@ function saveProj(orig,isNew){
   logAudit(isNew?'Creo proyecto: '+nombre:accion,nombre);
   save();
   closeModal();
-  try{if(typeof renderProyectos==='function')renderProyectos();}catch(e){}
-  toast(isNew?'✅ Proyecto creado':'✅ Guardado correctamente','success');
+  try{
+    if(typeof renderProyectos==='function'){
+      renderProyectos();
+    }
+  }catch(e){
+    console.error('renderProyectos error:',e);
+    toast('⚠️ Guardado, pero error al refrescar vista: '+e.message,'warn');
+  }
+  const confirmMsg=isNew?'✅ Proyecto creado':'✅ Guardado: avance '+orig.avance+'%'+(orig.tecnico?' · '+orig.tecnico.split(' ')[0]:'');
+  toast(confirmMsg,'success');
   }catch(err){
     console.error('saveProj error:',err);
     toast('❌ Error al guardar: '+err.message,'error');
@@ -1957,12 +1972,26 @@ async function openPwdModal(){
 }
 
 function refreshData(){
-  if(SCRIPT_URL){
-    remoteLoad().then(d=>{
-      if(d?.projects?.length){PROJ=d.projects;localStorage.setItem(DK,JSON.stringify(PROJ));}
-      setPage(PAGE);toast('🔄 Datos actualizados','success');
-    }).catch(()=>toast('Sin conexión a Drive','warn'));
-  } else {toast('Conecta Drive para sincronizar','warn');}
+  if(!SCRIPT_URL){toast('Conecta Drive para sincronizar','warn');return;}
+  if(!confirm('¿Cargar datos desde Drive?\n\nATENCIÓN: Esto sobreescribirá los cambios locales no guardados en Drive.\n\n¿Continuar?'))return;
+  remoteLoad().then(function(d){
+    if(d&&d.projects&&d.projects.length){
+      var localTs=parseInt(localStorage.getItem('sig_ts')||'0');
+      var driveTs=parseInt(d.ts||0);
+      if(driveTs>0&&driveTs>localTs){
+        PROJ=d.projects;
+        if(d.users&&d.users.length)USERS=d.users;
+        localStorage.setItem(DK,JSON.stringify(PROJ));
+        localStorage.setItem(AK,JSON.stringify(USERS));
+        localStorage.setItem('sig_ts',String(driveTs));
+        setPage(PAGE);toast('☁️ Datos cargados desde Drive','success');
+      } else {
+        toast('✅ Los datos locales ya están actualizados','success');
+      }
+    } else {
+      toast('☁️ Drive sin datos para cargar','warn');
+    }
+  }).catch(function(){toast('Sin conexión a Drive','warn');});
 }
 
 
