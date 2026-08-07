@@ -851,7 +851,7 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
                 <th>Usuario</th><th>Cargo</th><th>Rol base</th>
                 <th>Crear reservas</th><th>Editar reservas</th>
                 <th>Aprobar/Rechazar</th><th>Eliminar</th>
-                <th>Ver historial</th><th>Ver dashboard</th><th>Estado</th><th>Acciones</th>
+                <th>Ver historial</th><th>Ver dashboard</th><th>Editar programación</th><th>Estado</th><th>Acciones</th>
               </tr></thead>
               <tbody id="userTableBody"></tbody>
             </table>
@@ -1101,6 +1101,7 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
           <label style="display:flex;align-items:center;gap:7px;font-size:12px;padding:8px;background:var(--n50);border-radius:var(--r-sm);cursor:pointer"><input type="checkbox" id="pEliminar"/> Eliminar reservas</label>
           <label style="display:flex;align-items:center;gap:7px;font-size:12px;padding:8px;background:var(--n50);border-radius:var(--r-sm);cursor:pointer"><input type="checkbox" id="pHistorial" checked/> Ver historial</label>
           <label style="display:flex;align-items:center;gap:7px;font-size:12px;padding:8px;background:var(--n50);border-radius:var(--r-sm);cursor:pointer"><input type="checkbox" id="pDashboard" checked/> Ver dashboard</label>
+          <label style="display:flex;align-items:center;gap:7px;font-size:12px;padding:8px;background:var(--n50);border-radius:var(--r-sm);cursor:pointer"><input type="checkbox" id="pEditarProg"/> Editar programación</label>
         </div>
       </div>
     </div>
@@ -1131,6 +1132,78 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
     <div class="pan-foot">
       <button class="btn btn-secondary" onclick="closePanel('ovAddDep')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveDep()"><i class="bi bi-check-lg"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDITAR CLASE PROGRAMADA -->
+<div class="overlay" id="ovEditCls">
+  <div class="panel" style="width:520px">
+    <div class="pan-hdr"><h2><i class="bi bi-pencil-square"></i> Editar Clase Programada</h2><button class="pan-close" onclick="closePanel('ovEditCls')">✕</button></div>
+    <div class="pan-body">
+      <div class="alert-form" id="ecAlert"></div>
+      <div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:var(--r);padding:10px 14px;margin-bottom:14px;font-size:12px;color:#78350f">
+        <i class="bi bi-exclamation-triangle-fill"></i> <strong>Atención:</strong> Este cambio es permanente y visible para todos los usuarios. Quedará registrado con su nombre y fecha.
+      </div>
+      <div class="r2">
+        <div class="field"><label>Asignatura</label><input type="text" id="ecAsignatura" style="width:100%"/></div>
+        <div class="field"><label>Programa</label>
+          <select id="ecPrograma" style="width:100%">
+            <option value="AP">AP — Administración Pública</option>
+            <option value="EP">EP — Especialización</option>
+          </select>
+        </div>
+      </div>
+      <div class="r2">
+        <div class="field"><label>Docente</label><input type="text" id="ecDocente" style="width:100%"/></div>
+        <div class="field"><label>Grupo</label><input type="text" id="ecGrupo" style="width:100%"/></div>
+      </div>
+      <div class="r2">
+        <div class="field"><label>Salón</label>
+          <select id="ecSalon" style="width:100%"></select>
+        </div>
+        <div class="field"><label>Día</label>
+          <select id="ecDia" style="width:100%">
+            <option value="LUNES">Lunes</option>
+            <option value="MARTES">Martes</option>
+            <option value="MIERCOLES">Miércoles</option>
+            <option value="JUEVES">Jueves</option>
+            <option value="VIERNES">Viernes</option>
+            <option value="SABADO">Sábado</option>
+          </select>
+        </div>
+      </div>
+      <div class="r2">
+        <div class="field"><label>Hora inicio</label><input type="time" id="ecHI" style="width:100%"/></div>
+        <div class="field"><label>Hora fin</label><input type="time" id="ecHF" style="width:100%"/></div>
+      </div>
+      <input type="hidden" id="ecIdx"/>
+    </div>
+    <div class="pan-foot" style="justify-content:space-between">
+      <button class="btn btn-danger" onclick="deleteCls()"><i class="bi bi-trash"></i> Eliminar clase</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="closePanel('ovEditCls')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveCls()"><i class="bi bi-check-lg"></i> Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESTABLECER CONTRASEÑA (admin) -->
+<div class="overlay" id="ovResetPass">
+  <div class="panel" style="width:420px">
+    <div class="pan-hdr"><h2><i class="bi bi-key-fill"></i> Restablecer Contraseña</h2><button class="pan-close" onclick="closePanel('ovResetPass')">✕</button></div>
+    <div class="pan-body">
+      <div class="alert-form" id="rpAlert"></div>
+      <div style="margin-bottom:14px;font-size:13px;color:var(--muted)">Restableciendo contraseña para: <strong id="rpNombre">—</strong></div>
+      <div class="field"><label>Nueva contraseña *</label><input type="text" id="rpNueva" placeholder="Mínimo 6 caracteres"/></div>
+      <div class="field"><label>Confirmar contraseña *</label><input type="text" id="rpConfirm" placeholder="Repita la nueva contraseña"/></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px"><i class="bi bi-info-circle"></i> Comparta la nueva contraseña con el usuario de forma segura. El cambio aplica inmediatamente.</div>
+      <input type="hidden" id="rpPass"/>
+    </div>
+    <div class="pan-foot">
+      <button class="btn btn-secondary" onclick="closePanel('ovResetPass')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveResetPass()"><i class="bi bi-check-lg"></i> Restablecer</button>
     </div>
   </div>
 </div>
@@ -1193,15 +1266,15 @@ const CFG={
 /* ═══ USUARIOS BASE ═══ (Admin puede agregar más desde el panel) */
 const BASE_USERS = {
   'Duberly2026*':{nombre:'Duberly Carvajal',cargo:'Administradora',rol:'admin',
-    perms:{crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true},activo:true},
+    perms:{crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true,editarProg:true},activo:true},
   'Eva2026*':{nombre:'Eva Maldonado',cargo:'Gestora de Agendamientos',rol:'gestor',
-    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true},activo:true},
+    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true,editarProg:false},activo:true},
   'Jeimmy2026*':{nombre:'Jeimmy',cargo:'Apoyo Agendamientos',rol:'gestor',
-    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true},activo:true},
+    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true,editarProg:false},activo:true},
   'Nicolas2026*':{nombre:'Nicolás',cargo:'Apoyo Agendamientos',rol:'gestor',
-    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true},activo:true},
+    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true,editarProg:false},activo:true},
   'Coord2026*':{nombre:'Coordinador',cargo:'Coordinador de Oficina',rol:'consultor',
-    perms:{crear:false,editar:false,aprobar:false,eliminar:false,historial:true,dashboard:true},activo:true},
+    perms:{crear:false,editar:false,aprobar:false,eliminar:false,historial:true,dashboard:true,editarProg:false},activo:true},
 };
 
 /* ═══ SALONES BLOQUEADOS POR DEFECTO (106,107 por biblioteca) ═══ */
@@ -1378,7 +1451,7 @@ let DEPENDENCIAS = [
 let CLS = CLASES_2026_2.map(c=>({...c,salon:normAula(c.salon),fi:'2026-08-10',ff:'2026-11-28'}));
 let PROGS = [{n:'Pregrado 2026-2',m:'AP/EP',tot:CLS.length,fi:'2026-08-10',ff:'2026-11-28'}];
 let RSV = {}, USERS = {}, BLOQUEADOS = new Set(), FECHA_LOCK = null;
-let FECHA='2026-08-10', VISTA='grilla', TAB='grilla';
+let FECHA=new Date().toISOString().slice(0,10), VISTA='grilla', TAB='grilla';
 let EDID=null, TIPO='dep', SELECTED_DAYS=new Set(), FICHA_ID=null;
 let dbRef=null, usersRef=null, bloqRef=null, modoLocal=false;
 let UA=null; // usuario actual
@@ -1424,6 +1497,7 @@ function doLogin(){
   else if(USERS[pass])found={...USERS[pass]};
   if(found&&found.activo!==false){
     UA=found;
+    UA._pass=pass; // guardar contraseña activa para cambio posterior
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').classList.add('visible');
     applyUserUI();
@@ -1541,12 +1615,13 @@ function updateProgBanner(){
 function claseEn(aula,diaStr,franja){
   const s=sigF(franja);
   const fD=strD(FECHA);
+  // Fuera del rango del semestre → no hay clases (todo disponible)
+  const fi=strD('2026-08-10');const ff=strD('2026-11-28');
+  if(fD<fi||fD>ff)return null;
   return CLS.find(c=>
     normAula(c.salon)===aula &&
     c.dia===diaStr &&
-    solapa(c.hi,c.hf,franja,s) &&
-    (!c.fi||fD>=strD(c.fi)) &&
-    (!c.ff||fD<=strD(c.ff))
+    solapa(c.hi,c.hf,franja,s)
   )||null;
 }
 function rsvEnFecha(aula,fecha,franja){
@@ -2075,10 +2150,10 @@ function renderUserTable(){
   const allUsers={...BASE_USERS,...USERS};
   const rows=Object.entries(allUsers).map(([pass,u])=>{
     const isBase=!!BASE_USERS[pass];const isMe=(UA&&UA.nombre===u.nombre&&UA.rol==='admin');
-    const perms=['crear','editar','aprobar','eliminar','historial','dashboard'];
+    const perms=['crear','editar','aprobar','eliminar','historial','dashboard','editarProg'];
     const pCells=perms.map(p=>'<td><button class="perm-toggle '+(u.perms[p]?'perm-on':'perm-off')+'" '+(isMe?'disabled':'')+' onclick="permEl(this)" data-pass="'+pass+'" data-perm="'+p+'" data-val="'+(!u.perms[p])+'">'+(u.perms[p]?'✓ Sí':'✗ No')+'</button></td>').join('');
     const rolBadge={admin:'<span class="role-badge rb-admin">👑 Admin</span>',gestor:'<span class="role-badge rb-gestor">⚡ Gestor</span>',consultor:'<span class="role-badge rb-consultor">👁 Consultor</span>'}[u.rol]||u.rol;
-    return'<tr><td><strong>'+u.nombre+'</strong>'+(isBase?'<span style="font-size:9px;background:var(--b50);color:var(--b600);border-radius:999px;padding:1px 6px;margin-left:5px;font-weight:700">Base</span>':'')+'</td><td style="color:var(--muted);font-size:11px">'+( u.cargo||'—' )+'</td><td>'+rolBadge+'</td>'+pCells+'<td><button class="perm-toggle '+(u.activo!==false?'perm-on':'perm-off')+'" '+(isMe?'disabled':'')+' onclick="activoEl(this)" data-pass="'+pass+'" data-val="'+(!(u.activo!==false))+'">'+(u.activo!==false?'✓ Activo':'✗ Inactivo')+'</button></td><td>'+(isMe?'':'<button class="btn btn-danger btn-sm" onclick="delUser(this)" data-pass="'+pass+'"><i class="bi bi-trash3"></i></button>')+'</td></tr>';
+    return'<tr><td><strong>'+u.nombre+'</strong>'+(isBase?'<span style=\"font-size:9px;background:var(--b50);color:var(--b600);border-radius:999px;padding:1px 6px;margin-left:5px;font-weight:700\">Base</span>':'')+'</td><td style=\"color:var(--muted);font-size:11px\">'+(u.cargo||'—')+'</td><td>'+rolBadge+'</td>'+pCells+'<td><button class=\"perm-toggle '+(u.activo!==false?'perm-on':'perm-off')+'\" '+(isMe?'disabled':'')+' onclick=\"activoEl(this)\" data-pass=\"'+pass+'\" data-val=\"'+(!(u.activo!==false))+'\">'+( u.activo!==false?'✓ Activo':'✗ Inactivo')+'</button></td><td style=\"white-space:nowrap\">'+(isMe?'<span style=\"color:var(--muted);font-size:11px\">—</span>':'<button class=\"btn btn-secondary btn-sm\" title=\"Restablecer contraseña\" onclick=\"openResetPass(this)\" data-pass=\"'+pass+'\" data-nombre=\"'+u.nombre+'\"><i class=\"bi bi-key\"></i></button> <button class=\"btn btn-danger btn-sm\" onclick=\"delUser(this)\" data-pass=\"'+pass+'\"><i class=\"bi bi-trash3\"></i></button>')+'</td></tr>';
   }).join('');
   document.getElementById('userTableBody').innerHTML=rows||'<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--muted)">Sin usuarios adicionales</td></tr>';
 }
@@ -2127,7 +2202,7 @@ function openAddUser(){
   document.getElementById('uPass').value='';document.getElementById('uRol').value='gestor';
   document.getElementById('uCorreo').value='';
   ['pCrear','pEditar','pAprobar','pHistorial','pDashboard'].forEach(id=>document.getElementById(id).checked=true);
-  document.getElementById('pEliminar').checked=false;
+  document.getElementById('pEliminar').checked=false;document.getElementById('pEditarProg').checked=false;
   document.getElementById('userAlert').className='alert-form';
   document.getElementById('ovAddUser').classList.add('open');
 }
@@ -2140,11 +2215,49 @@ async function saveUser(){
   if(!nom||!pass){document.getElementById('userAlert').textContent='⚠️ Complete nombre y contraseña.';document.getElementById('userAlert').className='alert-form on';return;}
   if(pass.length<6){document.getElementById('userAlert').textContent='⚠️ La contraseña debe tener al menos 6 caracteres.';document.getElementById('userAlert').className='alert-form on';return;}
   if(BASE_USERS[pass]||USERS[pass]){document.getElementById('userAlert').textContent='⚠️ Esa contraseña ya está en uso.';document.getElementById('userAlert').className='alert-form on';return;}
-  const perms={crear:document.getElementById('pCrear').checked,editar:document.getElementById('pEditar').checked,aprobar:document.getElementById('pAprobar').checked,eliminar:document.getElementById('pEliminar').checked,historial:document.getElementById('pHistorial').checked,dashboard:document.getElementById('pDashboard').checked};
+  const perms={crear:document.getElementById('pCrear').checked,editar:document.getElementById('pEditar').checked,aprobar:document.getElementById('pAprobar').checked,eliminar:document.getElementById('pEliminar').checked,historial:document.getElementById('pHistorial').checked,dashboard:document.getElementById('pDashboard').checked,editarProg:document.getElementById('pEditarProg').checked};
   const userData={nombre:nom,cargo,rol,correo,perms,activo:true};
   if(!modoLocal&&usersRef){try{await usersRef.child(pass).set(userData);}catch(e){toast('Error al guardar','err');return;}}
   else{USERS[pass]=userData;renderUserTable();}
   closePanel('ovAddUser');toast('Usuario '+nom+' creado exitosamente','ok');
+}
+
+/* ═══ RESTABLECER CONTRASEÑA (solo admin) ═══ */
+function openResetPass(el){
+  if(!UA||UA.rol!=='admin'){toast('⛔ Solo el administrador puede restablecer contraseñas','err');return;}
+  document.getElementById('rpPass').value=el.dataset.pass;
+  document.getElementById('rpNombre').textContent=el.dataset.nombre;
+  document.getElementById('rpNueva').value='';
+  document.getElementById('rpConfirm').value='';
+  document.getElementById('rpAlert').className='alert-form';
+  document.getElementById('ovResetPass').classList.add('open');
+}
+async function saveResetPass(){
+  const passAnterior=document.getElementById('rpPass').value;
+  const nueva=document.getElementById('rpNueva').value.trim();
+  const confirmar=document.getElementById('rpConfirm').value.trim();
+  const alertEl=document.getElementById('rpAlert');
+  const showErr=(msg)=>{alertEl.textContent=msg;alertEl.className='alert-form on';};
+  if(nueva.length<6){showErr('⚠️ La contraseña debe tener al menos 6 caracteres.');return;}
+  if(nueva!==confirmar){showErr('⚠️ Las contraseñas no coinciden.');return;}
+  if((BASE_USERS[nueva]||USERS[nueva])&&nueva!==passAnterior){showErr('⚠️ Esa contraseña ya está en uso.');return;}
+  const enBase=!!BASE_USERS[passAnterior];
+  const enExtra=!!USERS[passAnterior];
+  if(!enBase&&!enExtra){showErr('⚠️ Usuario no encontrado.');return;}
+  const userData=enBase?{...BASE_USERS[passAnterior]}:{...USERS[passAnterior]};
+  if(enBase){BASE_USERS[nueva]=userData;if(nueva!==passAnterior)delete BASE_USERS[passAnterior];}
+  if(enExtra){
+    if(!modoLocal&&usersRef){
+      try{
+        await usersRef.child(nueva).set(userData);
+        if(nueva!==passAnterior)await usersRef.child(passAnterior).remove();
+      }catch(e){showErr('Error al guardar en servidor.');return;}
+    }
+    USERS[nueva]=userData;if(nueva!==passAnterior)delete USERS[passAnterior];
+  }
+  renderUserTable();
+  closePanel('ovResetPass');
+  toast('✅ Contraseña restablecida para '+userData.nombre,'ok');
 }
 
 /* ═══ CAMBIAR CONTRASEÑA ═══ */
@@ -2158,29 +2271,36 @@ function openChangePass(){
 async function saveChangePass(){
   const actual=document.getElementById('cpActual').value.trim();
   const nueva=document.getElementById('cpNueva').value.trim();
-  const confirm=document.getElementById('cpConfirm').value.trim();
+  const confirmar=document.getElementById('cpConfirm').value.trim();
   const alertEl=document.getElementById('cpAlert');
   const showErr=(msg)=>{alertEl.textContent=msg;alertEl.className='alert-form on';};
-  // Verificar contraseña actual
-  const enBase=BASE_USERS[actual];const enExtra=USERS[actual];
-  const usuarioActual=enBase||enExtra;
-  if(!usuarioActual||usuarioActual.nombre!==UA.nombre){showErr('⚠️ La contraseña actual es incorrecta.');return;}
+
+  // Verificar que la contraseña ingresada coincide con la del usuario activo
+  if(actual!==UA._pass){showErr('⚠️ La contraseña actual es incorrecta.');return;}
   if(nueva.length<6){showErr('⚠️ La nueva contraseña debe tener al menos 6 caracteres.');return;}
   if(nueva===actual){showErr('⚠️ La nueva contraseña debe ser diferente a la actual.');return;}
-  if(nueva!==confirm){showErr('⚠️ Las contraseñas no coinciden.');return;}
+  if(nueva!==confirmar){showErr('⚠️ Las contraseñas no coinciden.');return;}
   if(BASE_USERS[nueva]||USERS[nueva]){showErr('⚠️ Esa contraseña ya está en uso por otro usuario.');return;}
-  // Guardar cambio
-  const userData={...usuarioActual};
+
+  // Hacer el cambio: copiar el objeto al nuevo key y eliminar el anterior
+  const enBase=!!BASE_USERS[actual];
+  const enExtra=!!USERS[actual];
+  const userData={...UA};
+  delete userData._pass;
+
   if(enBase){
     BASE_USERS[nueva]=userData;
     delete BASE_USERS[actual];
   }
   if(enExtra){
     if(!modoLocal&&usersRef){
-      try{await usersRef.child(nueva).set(userData);await usersRef.child(actual).remove();}
-      catch(e){showErr('Error al guardar en servidor.');return;}
+      try{
+        await usersRef.child(nueva).set(userData);
+        await usersRef.child(actual).remove();
+      }catch(e){showErr('Error al guardar en servidor.');return;}
     }
-    USERS[nueva]=userData;delete USERS[actual];
+    USERS[nueva]=userData;
+    delete USERS[actual];
   }
   closePanel('ovChangePass');
   toast('✅ Contraseña actualizada. Iniciará sesión nuevamente.','ok');
@@ -2210,26 +2330,21 @@ async function saveTransferAdmin(){
   const alertEl=document.getElementById('taAlert');
   const showErr=(msg)=>{alertEl.textContent=msg;alertEl.className='alert-form on';};
   if(!targetPass){showErr('⚠️ Seleccione un usuario destino.');return;}
-  // Verificar contraseña del admin actual
-  const enBase=BASE_USERS[myPass];const enExtra=USERS[myPass];
-  const usuarioActual=enBase||enExtra;
-  if(!usuarioActual||usuarioActual.nombre!==UA.nombre){showErr('⚠️ Contraseña incorrecta.');return;}
-  // Hacer el cambio: quitar admin actual, dar admin al nuevo
+  if(myPass!==UA._pass){showErr('⚠️ Contraseña incorrecta.');return;}
   const allUsers={...BASE_USERS,...USERS};
   const nuevoAdmin=allUsers[targetPass];
   if(!nuevoAdmin){showErr('⚠️ Usuario no encontrado.');return;}
-  // Actualizar roles
-  usuarioActual.rol='gestor';
+  const userData={...UA};delete userData._pass;
+  userData.rol='gestor';
   nuevoAdmin.rol='admin';
-  nuevoAdmin.perms={crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true};
-  if(enBase){BASE_USERS[myPass]=usuarioActual;}
-  if(USERS[myPass]){USERS[myPass]=usuarioActual;}
+  nuevoAdmin.perms={crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true,editarProg:true};
+  if(BASE_USERS[UA._pass]){BASE_USERS[UA._pass]=userData;}
+  if(USERS[UA._pass]){USERS[UA._pass]=userData;}
   if(BASE_USERS[targetPass]){BASE_USERS[targetPass]=nuevoAdmin;}
   if(USERS[targetPass]){USERS[targetPass]=nuevoAdmin;}
-  // Persistir en Firebase si aplica
   if(!modoLocal&&usersRef){
     try{
-      if(USERS[myPass])await usersRef.child(myPass).set(usuarioActual);
+      if(USERS[UA._pass])await usersRef.child(UA._pass).set(userData);
       if(USERS[targetPass])await usersRef.child(targetPass).set(nuevoAdmin);
     }catch(e){showErr('Error al guardar en servidor.');return;}
   }
@@ -2318,7 +2433,82 @@ async function deleteById(id){if(!canDo('eliminar')||!confirm('¿Eliminar?'))ret
 async function changeStatus(id,estado){if(!canDo('aprobar'))return;const r=RSV[id];if(!r)return;const updated={...r,estado,aprobadoPor:UA?UA.nombre:'Sistema',fechaAprobacion:fmtD(new Date())};try{if(!modoLocal)await dbRef.child(id).set(updated);else{RSV[id]=updated;saveLocal();render();}toast(estado==='confirmada'?'✅ Aprobada':'❌ Rechazada',estado==='confirmada'?'ok':'warn');closePanel('ovDet');}catch(e){toast('Error','err');}}
 
 /* ═══ DETALLE ═══ */
-function openDetCls(idx){const c=CLS[idx];if(!c)return;document.getElementById('detTitle').innerHTML='<i class="bi bi-book"></i> Clase Programada';document.getElementById('detBody').innerHTML=dr('Asignatura','<strong>'+c.asignatura+'</strong>')+dr('Salón',normAula(c.salon))+dr('Programa / Grupo',c.programa+' / Grupo '+c.grupo)+dr('Docente',c.docente||'—')+dr('Horario',c.hi+' – '+c.hf)+dr('Día',c.dia);document.getElementById('btnEditDet').style.display='none';document.getElementById('detApproveActions').style.display='none';document.getElementById('ovDet').classList.add('open');}
+function openDetCls(idx){
+  const c=CLS[idx];if(!c)return;
+  document.getElementById('detTitle').innerHTML='<i class="bi bi-book"></i> Clase Programada';
+  document.getElementById('detBody').innerHTML=
+    dr('Asignatura','<strong>'+c.asignatura+'</strong>')+
+    dr('Salón',normAula(c.salon))+
+    dr('Programa / Grupo',c.programa+' / Grupo '+c.grupo)+
+    dr('Docente',c.docente||'—')+
+    dr('Horario',c.hi+' – '+c.hf)+
+    dr('Día',c.dia)+
+    (c.editadoPor?dr('Editado por',c.editadoPor+' · '+c.fechaEdicion):'');
+  const puedeEditar=UA&&UA.perms&&UA.perms.editarProg;
+  const btnEdit=document.getElementById('btnEditDet');
+  btnEdit.style.display=puedeEditar?'inline-flex':'none';
+  if(puedeEditar){btnEdit.onclick=()=>{closePanel('ovDet');setTimeout(()=>openEditCls(idx),180);};}
+  document.getElementById('detApproveActions').style.display='none';
+  document.getElementById('ovDet').classList.add('open');
+}
+function openEditCls(idx){
+  if(!UA||!UA.perms||!UA.perms.editarProg){toast('⛔ Sin permiso para editar programación','err');return;}
+  const c=CLS[idx];if(!c)return;
+  document.getElementById('ecIdx').value=idx;
+  document.getElementById('ecAsignatura').value=c.asignatura||'';
+  document.getElementById('ecPrograma').value=c.programa||'AP';
+  document.getElementById('ecDocente').value=c.docente||'';
+  document.getElementById('ecGrupo').value=c.grupo||'';
+  document.getElementById('ecDia').value=c.dia||'LUNES';
+  document.getElementById('ecHI').value=c.hi||'';
+  document.getElementById('ecHF').value=c.hf||'';
+  // Poblar select de salones
+  const sel=document.getElementById('ecSalon');
+  sel.innerHTML=CAT.map(s=>'<option value="'+s.id+'"'+(normAula(c.salon)===s.id?' selected':'')+'>'+s.n+'</option>').join('');
+  document.getElementById('ecAlert').className='alert-form';
+  document.getElementById('ovEditCls').classList.add('open');
+}
+async function saveCls(){
+  const idx=parseInt(document.getElementById('ecIdx').value);
+  const c=CLS[idx];if(!c)return;
+  const alertEl=document.getElementById('ecAlert');
+  const asig=document.getElementById('ecAsignatura').value.trim();
+  const doc=document.getElementById('ecDocente').value.trim();
+  if(!asig){alertEl.textContent='⚠️ La asignatura es obligatoria.';alertEl.className='alert-form on';return;}
+  const updated={...c,
+    asignatura:asig,
+    programa:document.getElementById('ecPrograma').value,
+    docente:doc,
+    grupo:document.getElementById('ecGrupo').value.trim(),
+    salon:document.getElementById('ecSalon').value,
+    dia:document.getElementById('ecDia').value,
+    hi:document.getElementById('ecHI').value,
+    hf:document.getElementById('ecHF').value,
+    editadoPor:UA?UA.nombre:'Sistema',
+    fechaEdicion:fmtD(new Date())
+  };
+  CLS[idx]=updated;
+  // Persistir en Firebase
+  if(!modoLocal){
+    try{await dbRef.root.child('clases_edit').child(String(idx)).set(updated);}
+    catch(e){toast('Error al guardar en servidor','err');return;}
+  }
+  closePanel('ovEditCls');
+  render();
+  toast('✅ Clase actualizada correctamente','ok');
+}
+async function deleteCls(){
+  const idx=parseInt(document.getElementById('ecIdx').value);
+  if(!confirm('¿Eliminar esta clase de la programación? Esta acción es permanente.'))return;
+  if(!modoLocal){
+    try{await dbRef.root.child('clases_edit').child(String(idx)).set({eliminado:true,eliminadoPor:UA?UA.nombre:'Sistema',fechaEliminacion:fmtD(new Date())});}
+    catch(e){toast('Error al eliminar','err');return;}
+  }
+  CLS.splice(idx,1);
+  closePanel('ovEditCls');
+  render();
+  toast('🗑️ Clase eliminada de la programación','ok');
+}
 function openDetRsv(id){const r=RSV[id];if(!r)return;const s=CAT.find(x=>x.id===r.aula);const col={confirmada:'#065f46',pendiente:'#78350f',rechazada:'#991b1b',mantenimiento:'var(--muted)'}[r.estado]||'var(--muted)';const bg={confirmada:'var(--success-bg)',pendiente:'var(--warning-bg)',rechazada:'var(--danger-bg)',mantenimiento:'var(--n100)'}[r.estado]||'var(--n100)';const badge='<span style="background:'+bg+';color:'+col+';border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700">'+r.estado+'</span>';document.getElementById('detTitle').innerHTML='<i class="bi bi-calendar-event"></i> Detalle de Reserva';document.getElementById('detBody').innerHTML=dr('Evento','<strong>'+r.evento+'</strong>')+dr('Espacio',s?s.n:r.aula)+dr('Tipo',{dep:'🏢 Dependencia ESAP',est:'🎓 Estudiante',ext:'🌐 Externo'}[r.tipo||'dep']||'—')+dr('Solicitante',nombreR(r))+dr('Dependencia/Área',depLabel(r))+dr('Correo',correoR(r)||'—')+(r.telefono?dr('Teléfono',r.telefono):'')+dr('Fecha',mesL(r.fecha||(r.fechas&&r.fechas[0])||''))+dr('Horario',r.hi+' – '+r.hf)+dr('Estado',badge)+(r.obs?dr('Observaciones',r.obs):'')+dr('Agendado por',r.creadoPor||'—')+(r.editadoPor?dr('Editado por',r.editadoPor+' · '+r.fechaEdicion):'')+(r.aprobadoPor?dr('Aprobado por',r.aprobadoPor):'');const puedeEditar=canDo('editar');const puedeAprobar=canDo('aprobar')&&r.estado==='pendiente';document.getElementById('btnEditDet').style.display=puedeEditar?'inline-flex':'none';document.getElementById('btnEditDet').onclick=()=>{closePanel('ovDet');setTimeout(()=>openEditRsv(id),180);};const apActs=document.getElementById('detApproveActions');apActs.style.display=puedeAprobar?'flex':'none';if(puedeAprobar){document.getElementById('btnApprove').onclick=()=>changeStatus(id,'confirmada');document.getElementById('btnReject').onclick=()=>changeStatus(id,'rechazada');}document.getElementById('ovDet').classList.add('open');}
 function openDetEv(aula,fecha,fr){const ev=eventoEn(aula,fecha,fr);if(!ev)return;document.getElementById('detTitle').innerHTML='<i class="bi bi-star"></i> Evento Especial';document.getElementById('detBody').innerHTML=dr('Evento','<strong>'+ev.evento+'</strong>')+dr('Espacio',CAT.find(x=>x.id===aula)?.n||aula)+dr('Fecha',mesL(ev.fecha))+dr('Horario',ev.hi+' – '+ev.hf);document.getElementById('btnEditDet').style.display='none';document.getElementById('detApproveActions').style.display='none';document.getElementById('ovDet').classList.add('open');}
 
@@ -2412,7 +2602,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.day-chip').forEach(chip=>{chip.addEventListener('click',()=>{const day=chip.dataset.day;if(SELECTED_DAYS.has(day)){SELECTED_DAYS.delete(day);chip.classList.remove('on');}else{SELECTED_DAYS.add(day);chip.classList.add('on');}});});
 
   // Cerrar overlays
-  ['ovRsv','ovDet','ovFicha','ovExcel','ovAddUser','ovAddDep','ovChangePass','ovTransferAdmin'].forEach(id=>{document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget)closePanel(id);});});
+  ['ovRsv','ovDet','ovFicha','ovExcel','ovAddUser','ovAddDep','ovChangePass','ovTransferAdmin','ovEditCls','ovResetPass'].forEach(id=>{document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget)closePanel(id);});});
 
   // Poblar select dependencias dinámicamente
   poblarDepSelect();
