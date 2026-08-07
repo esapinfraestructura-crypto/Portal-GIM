@@ -576,10 +576,24 @@ function loSet(k,v){ try{ localStorage.setItem('portal_gim_'+k,v); }catch(e){} }
 
 /* ═══ Persistencia ═══ */
 async function remoteLoad(tool){
-  if(!ST.scriptUrl) throw new Error('sin url');
-  const res=await fetch(ST.scriptUrl+'?tool='+tool,{redirect:'follow'});
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  return await res.json();
+  if(!ST.scriptUrl) return null;
+  try{
+    const res=await fetch(ST.scriptUrl+'?tool='+tool,{redirect:'follow',signal:AbortSignal.timeout(5000)});
+    if(!res.ok){
+      if(res.status===404||res.status===403){
+        // Script no disponible — deshabilitar Drive silenciosamente
+        console.warn('Drive Apps Script returned '+res.status+' — Drive disabled');
+        ST.scriptUrl='';
+        loSet('script_url','');
+        setDriveIndicator(false);
+      }
+      return null;
+    }
+    return await res.json();
+  }catch(e){
+    console.warn('remoteLoad failed:',e.message);
+    return null;
+  }
 }
 async function remoteSave(tool, data){
   if(!ST.scriptUrl) return;
@@ -607,18 +621,17 @@ async function loadPortalData(){
     try{ const org2=loGet('portal_org_v2');if(org2)ST.orgData=JSON.parse(org2); }catch(e){}
   }
 
-  // Si hay Drive, cargar en segundo plano sin pisar el organigrama local
+  // Drive: solo en segundo plano, sin bloquear la interfaz
   if(ST.scriptUrl){
-    try{
-      const d=await remoteLoad('portal');
-      // Solo actualizar usuarios y tools desde Drive (no organigrama — localStorage manda)
-      if(d.usuarios&&d.usuarios.length>0) ST.usuarios=d.usuarios;
-      if(d.tools&&d.tools.length>0) ST.tools=d.tools;
-      // Organigrama: usar Drive solo si localStorage está vacío
-      if(!ST.orgData&&d.organigrama) ST.orgData=d.organigrama;
-      // Sincronizar: subir a Drive si Drive no tiene datos
-      if(!d.usuarios||d.usuarios.length===0) savePortalData();
-    }catch(e){ /* Drive falló, ya tenemos localStorage */ }
+    setTimeout(async function(){
+      try{
+        const d=await remoteLoad('portal');
+        if(d&&d.usuarios&&d.usuarios.length>0) ST.usuarios=d.usuarios;
+        if(d&&d.tools&&d.tools.length>0) ST.tools=d.tools;
+        if(d&&!ST.orgData&&d.organigrama) ST.orgData=d.organigrama;
+        setDriveIndicator(!!ST.scriptUrl);
+      }catch(e){ setDriveIndicator(false); }
+    }, 2000); // esperar 2s después de cargar antes de intentar Drive
   }
 }
 
@@ -726,7 +739,7 @@ const TOOLS_FIXED=[
   { id:'obra-neiva',  nombre:'Obra Neiva',          icono:'🏢', desc:'Dashboard ejecutivo de seguimiento de la construcción en la sede Territorial Huila.',                       url:'obra-neiva.html',       estado:'activo',       categoria:'Infraestructura',    fijo:true },
   { id:'active-doc',  nombre:'Documentos Activos',  icono:'📄', desc:'Control y seguimiento de solicitudes con alertas de vencimiento por semáforo de SLA.',                      url:'active-document.html',  estado:'construccion', categoria:'Gestión documental', fijo:true },
   { id:'umis',        nombre:'Mantenimiento UMI',   icono:'🔧', desc:'Gestión de mantenimiento de Sede Central, Rosales, Teusaquillo y CETAP territoriales.',                     url:'umis-mantenimiento.html',estado:'construccion', categoria:'Mantenimiento',      fijo:true },
-  { id:'aulas',       nombre:'Gestión de Aulas',    icono:'🎓', desc:'Sistema de reserva y control de aulas ESAP. Publicado en GitHub Pages.',                                    url:'https://duberlycarvajal94-pixel.github.io/Sistema-de-Salones-ESAP/', estado:'activo', categoria:'Académico', fijo:true },
+  { id:'aulas',       nombre:'Reserva de Salones',  icono:'🎓', desc:'Sistema de reserva y control de aulas ESAP.',                                    url:'https://esapinfraestructura-crypto.github.io/Portal-GIM/Salones.html', estado:'activo', categoria:'Académico', fijo:true },
   { id:'georef',      nombre:'Georreferenciación',  icono:'🗺️', desc:'Mapa interactivo de sedes y CETAP a nivel nacional.',                                                       url:'',                      estado:'construccion', categoria:'Infraestructura',    fijo:true }
 ];
 
@@ -764,7 +777,7 @@ function renderHerramientas(mc){
     tools.filter(t=>t.categoria===cat).forEach(t=>{
       const activo=t.url&&t.estado==='activo';
       if(activo){
-        html+=`<a href="${esc(t.url)}" target="_blank" class="tool-card">
+        html+=`<a href="${esc(t.url)}" target="_blank" rel="noopener" class="tool-card">
           <div class="tc-body">
             <span class="tc-icon">${t.icono}</span>
             <div class="tc-name">${esc(t.nombre)}</div>
@@ -2105,33 +2118,100 @@ async function eliminarUsuario(usuario){
 }
 
 /* ═══ MODALES: Drive y Contraseña ═══ */
+function setDriveIndicator(connected){
+  var s=document.getElementById('driveStatus');
+  if(!s) return;
+  if(connected){
+    s.textContent='🟢 Drive';
+    s.style.cssText='background:#d1fae5;color:#065f46;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;';
+  } else {
+    s.textContent='🟡 Sin Drive';
+    s.style.cssText='background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;';
+  }
+}
+
 function modalDrive(){
-  document.getElementById('modal').innerHTML=`
-    <div class="modal-head"><h3>☁ Conectar Google Drive</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div class="modal-body">
-      ${ST.scriptUrl?'<div style="background:#d1fae5;color:#065f46;padding:10px 12px;border-radius:8px;margin-bottom:14px;font-size:12.5px;">Conectado: <code style="font-size:10.5px;word-break:break-all;">'+esc(ST.scriptUrl)+'</code></div>':'<div style="background:#fef3c7;color:#92400e;padding:10px 12px;border-radius:8px;margin-bottom:14px;font-size:12.5px;">Sin conexion. Pega la URL del Apps Script abajo.</div>'}
-      <div class="field"><label>URL del Apps Script (Code.gs)</label><input id="drUrl" value="${esc(ST.scriptUrl)}" placeholder="https://script.google.com/macros/s/..."></div>
-      <p style="font-size:11.5px;color:var(--muted);">Esta URL conecta el portal y TODAS las herramientas a Google Drive. Configúrala una sola vez.</p>
-    </div>
-    <div class="modal-foot" style="justify-content:space-between;">
-      ${ST.scriptUrl?'<button class="btn btn-danger btn-sm" id="drDisc">Desconectar</button>':'<span></span>'}
-      <div style="display:flex;gap:8px;"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="drConn">Conectar y probar</button></div>
-    </div>`;
+  var connected=!!ST.scriptUrl;
+  var connBox=connected
+    ?'<div style="background:#d1fae5;color:#065f46;padding:10px 12px;border-radius:8px;margin-bottom:16px;font-size:12.5px;">🟢 Conectado: <code style="font-size:10.5px;word-break:break-all;">'+esc(ST.scriptUrl)+'</code></div>'
+    :'<div style="background:#fef3c7;color:#92400e;padding:10px 12px;border-radius:8px;margin-bottom:16px;font-size:12.5px;">🟡 Sin conexión. Pega la URL del Apps Script abajo.</div>';
+  var html2=''
+    +'<div class="modal-head"><h3>☁️ Google Drive</h3><button class="modal-close" onclick="closeModal()">✕</button></div>'
+    +'<div class="modal-body">'
+    +connBox
+    +'<div class="mf"><span>URL del Apps Script</span><input id="drUrl" value="'+esc(ST.scriptUrl||'')+'" placeholder="https://script.google.com/macros/s/..." style="width:100%;padding:10px 13px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;color:#0f172a;background:#f8fafc;box-sizing:border-box;font-family:inherit;"></div>'
+    +'<div style="font-size:11.5px;color:#64748b;margin-top:-10px;margin-bottom:16px;">Si ves "Error HTTP 404" el script fue redeployado — pega la nueva URL. Déjala vacía para trabajar sin Drive.</div>'
+    // Acciones de carga
+    +(connected?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-top:4px;">'
+      +'<div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;">📥 Cargar datos desde Drive</div>'
+      +'<div style="font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.6;">Útil cuando accedes desde otro dispositivo y quieres traer los datos guardados en Drive a este navegador.</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+        +'<button class="btn btn-sm" id="drLoadUsuarios" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;">📥 Cargar usuarios</button>'
+        +'<button class="btn btn-sm" id="drLoadTodo" style="background:#f0fdf4;color:#15803d;border-color:#bbf7d0;">📥 Cargar todo desde Drive</button>'
+      +'</div>'
+    +'</div>':'')
+    +'</div>'
+    +'<div class="modal-foot" style="justify-content:space-between;">'
+      +(connected?'<button class="btn btn-sm" id="drDisc" style="color:#dc2626;border-color:#dc2626;">Desconectar</button>':'<span></span>')
+      +'<div style="display:flex;gap:8px;"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" id="drConn">Conectar y probar</button></div>'
+    +'</div>';
+  document.getElementById('modal').innerHTML=html2;
   openModal();
-  document.getElementById('drConn').addEventListener('click',async()=>{
-    const url=document.getElementById('drUrl').value.trim();
-    if(!url){ toast('Pega la URL del script'); return; }
+
+  // Conectar
+  document.getElementById('drConn').addEventListener('click',async function(){
+    var url=(document.getElementById('drUrl').value||'').trim();
+    if(!url){ toast('Pega la URL del Apps Script'); return; }
     toast('Probando conexión...');
     try{
-      const res=await fetch(url+'?tool=portal',{redirect:'follow'});
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      await res.json();
+      var res=await fetch(url+'?tool=portal',{redirect:'follow',signal:AbortSignal.timeout(8000)});
+      if(!res.ok) throw new Error('HTTP '+res.status+' — URL incorrecta o script no publicado');
+      var d=await res.json();
       ST.scriptUrl=url; loSet('script_url',url);
-      await loadPortalData();
-      closeModal(); updateDriveStatus(); setView(ST.view); toast('✅ Drive conectado');
-    }catch(e){ toast('❌ Error: '+e.message); }
+      if(d.usuarios&&d.usuarios.length>0) ST.usuarios=d.usuarios;
+      if(d.tools&&d.tools.length>0) ST.tools=d.tools;
+      closeModal(); updateDriveStatus(); setView(ST.view);
+      toast('✅ Drive conectado correctamente');
+    }catch(e){ toast('❌ '+e.message); }
   });
-  document.getElementById('drDisc')?.addEventListener('click',()=>{ ST.scriptUrl=''; loSet('script_url',''); closeModal(); updateDriveStatus(); toast('Desconectado'); });
+
+  // Cargar solo usuarios
+  document.getElementById('drLoadUsuarios')?.addEventListener('click',async function(){
+    if(!confirm('¿Cargar usuarios desde Drive? Reemplaza la lista local.')) return;
+    toast('Cargando usuarios desde Drive...');
+    try{
+      var d=await remoteLoad('portal');
+      if(!d||!d.usuarios||!d.usuarios.length) throw new Error('Drive no tiene usuarios guardados');
+      ST.usuarios=d.usuarios;
+      await savePortalData();
+      closeModal(); setView('admin');
+      toast('✅ '+d.usuarios.length+' usuarios cargados desde Drive');
+    }catch(e){ toast('❌ '+e.message); }
+  });
+
+  // Cargar todo
+  document.getElementById('drLoadTodo')?.addEventListener('click',async function(){
+    if(!confirm('¿Cargar TODO desde Drive?\nEsto reemplaza usuarios, herramientas y organigrama locales.')) return;
+    toast('Cargando desde Drive...');
+    try{
+      var d=await remoteLoad('portal');
+      if(!d) throw new Error('Drive no devolvió datos');
+      if(d.usuarios&&d.usuarios.length>0) ST.usuarios=d.usuarios;
+      if(d.tools&&d.tools.length>0) ST.tools=d.tools;
+      if(d.organigrama) ST.orgData=d.organigrama;
+      await savePortalData();
+      closeModal(); setView(ST.view);
+      toast('✅ Datos cargados desde Drive correctamente');
+    }catch(e){ toast('❌ '+e.message); }
+  });
+
+  // Desconectar
+  document.getElementById('drDisc')?.addEventListener('click',function(){
+    if(!confirm('¿Desconectar Drive? Los datos locales se conservan.')) return;
+    ST.scriptUrl=''; loSet('script_url','');
+    closeModal(); updateDriveStatus();
+    toast('Drive desconectado — trabajando en modo local');
+  });
 }
 
 function modalPwd(){
