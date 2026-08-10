@@ -1268,11 +1268,11 @@ const BASE_USERS = {
   'Duberly2026*':{nombre:'Duberly Carvajal',cargo:'Administradora',rol:'admin',
     perms:{crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true,editarProg:true},activo:true},
   'Eva2026*':{nombre:'Eva Maldonado',cargo:'Gestora de Agendamientos',rol:'gestor',
-    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true,editarProg:false},activo:true},
+    perms:{crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true,editarProg:true},activo:true},
   'Jeimmy2026*':{nombre:'Jeimmy',cargo:'Apoyo Agendamientos',rol:'gestor',
-    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true,editarProg:false},activo:true},
+    perms:{crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true,editarProg:true},activo:true},
   'Nicolas2026*':{nombre:'Nicolás',cargo:'Apoyo Agendamientos',rol:'gestor',
-    perms:{crear:true,editar:true,aprobar:true,eliminar:false,historial:true,dashboard:true,editarProg:false},activo:true},
+    perms:{crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true,editarProg:true},activo:true},
   'Coord2026*':{nombre:'Coordinador',cargo:'Coordinador de Oficina',rol:'consultor',
     perms:{crear:false,editar:false,aprobar:false,eliminar:false,historial:true,dashboard:true,editarProg:false},activo:true},
 };
@@ -1492,6 +1492,8 @@ function doLogin(){
   const user=document.getElementById('loginUser').value.trim();
   // Check base users
   let found=null;
+  // Cargar edits de clases desde localStorage (solo una vez, primera sesión)
+  if(!window._clsLoaded){loadClsEditsLocal();window._clsLoaded=true;}
   if(BASE_USERS[pass])found={...BASE_USERS[pass]};
   // Check dynamic users from Firebase
   else if(USERS[pass])found={...USERS[pass]};
@@ -2177,18 +2179,19 @@ async function togglePerm(pass,perm,val){
   if(!u.perms)u.perms={};
   u.perms[perm]=val;
   if(USERS[pass]){if(!modoLocal&&usersRef)try{await usersRef.child(pass).set(u);}catch(e){toast('Error','err');}else{USERS[pass]=u;}}
-  else if(BASE_USERS[pass]){BASE_USERS[pass].perms[perm]=val;}
+  else if(BASE_USERS[pass]){BASE_USERS[pass].perms[perm]=val;saveBaseUserOverrides();}
   renderUserTable();
-  toast('Permiso "'+(perm)+'" '+(val?'activado':'desactivado')+' para '+u.nombre,'ok');
+  const pNames={crear:'Crear reservas',editar:'Editar reservas',aprobar:'Aprobar',eliminar:'Eliminar',historial:'Ver historial',dashboard:'Dashboard',editarProg:'Editar programación'};
+  toast((pNames[perm]||perm)+' '+(val?'✅ activado':'❌ desactivado')+' — '+u.nombre,'ok');
 }
 async function toggleActivo(pass,val){
   const allUsers={...BASE_USERS,...USERS};
   const u=allUsers[pass];if(!u)return;
   u.activo=val;
   if(USERS[pass]){if(!modoLocal&&usersRef)try{await usersRef.child(pass).set(u);}catch(e){toast('Error','err');}else{USERS[pass]=u;}}
-  else if(BASE_USERS[pass])BASE_USERS[pass].activo=val;
+  else if(BASE_USERS[pass]){BASE_USERS[pass].activo=val;saveBaseUserOverrides();}
   renderUserTable();
-  toast(u.nombre+(val?' activado':' desactivado'),'ok');
+  toast(u.nombre+(val?' ✅ activado':'🔒 desactivado'),'ok');
 }
 async function deleteUser(pass){
   if(!USERS[pass]){toast('No se puede eliminar un usuario base','warn');return;}
@@ -2201,8 +2204,8 @@ function openAddUser(){
   document.getElementById('uNombre').value='';document.getElementById('uCargo').value='';
   document.getElementById('uPass').value='';document.getElementById('uRol').value='gestor';
   document.getElementById('uCorreo').value='';
-  ['pCrear','pEditar','pAprobar','pHistorial','pDashboard'].forEach(id=>document.getElementById(id).checked=true);
-  document.getElementById('pEliminar').checked=false;document.getElementById('pEditarProg').checked=false;
+  ['pCrear','pEditar','pAprobar','pHistorial','pDashboard','pEditarProg'].forEach(id=>document.getElementById(id).checked=true);
+  document.getElementById('pEliminar').checked=false;
   document.getElementById('userAlert').className='alert-form';
   document.getElementById('ovAddUser').classList.add('open');
 }
@@ -2245,7 +2248,12 @@ async function saveResetPass(){
   const enExtra=!!USERS[passAnterior];
   if(!enBase&&!enExtra){showErr('⚠️ Usuario no encontrado.');return;}
   const userData=enBase?{...BASE_USERS[passAnterior]}:{...USERS[passAnterior]};
-  if(enBase){BASE_USERS[nueva]=userData;if(nueva!==passAnterior)delete BASE_USERS[passAnterior];}
+  if(enBase){
+    BASE_USERS[nueva]=userData;
+    if(nueva!==passAnterior)delete BASE_USERS[passAnterior];
+    // Persistir en localStorage para que sobreviva al reinicio
+    saveBaseUserOverrides();
+  }
   if(enExtra){
     if(!modoLocal&&usersRef){
       try{
@@ -2488,23 +2496,79 @@ async function saveCls(){
     fechaEdicion:fmtD(new Date())
   };
   CLS[idx]=updated;
-  // Persistir en Firebase
-  if(!modoLocal){
-    try{await dbRef.root.child('clases_edit').child(String(idx)).set(updated);}
-    catch(e){toast('Error al guardar en servidor','err');return;}
+  // Guardar en localStorage SIEMPRE (respaldo confiable)
+  saveClsEditsLocal();
+  // Intentar Firebase si está disponible
+  if(!modoLocal&&dbRef){
+    try{
+      const clsEditRef=dbRef.parent?dbRef.parent.child('clases_edit'):null;
+      if(clsEditRef)await clsEditRef.child(String(idx)).set(updated);
+    }catch(e){ console.warn('Firebase cls save failed, using localStorage',e); }
   }
   closePanel('ovEditCls');
   render();
   toast('✅ Clase actualizada correctamente','ok');
 }
+
+function saveBaseUserOverrides(){
+  try{ localStorage.setItem('salones_base_users', JSON.stringify(BASE_USERS)); }catch(e){}
+}
+function loadBaseUserOverrides(){
+  try{
+    const saved=localStorage.getItem('salones_base_users');
+    if(saved){
+      const overrides=JSON.parse(saved);
+      Object.entries(overrides).forEach(function(entry){
+        const pass=entry[0], data=entry[1];
+        // Apply override: if pass differs from original, update BASE_USERS
+        if(!BASE_USERS[pass]){
+          // New key (password changed) — add it and remove old one
+          BASE_USERS[pass]=data;
+        } else {
+          // Update existing
+          Object.assign(BASE_USERS[pass], data);
+        }
+      });
+      // Remove keys that are in original BASE_USERS but not in overrides
+      Object.keys(BASE_USERS).forEach(function(k){
+        if(!overrides[k]){
+          // Check if this was removed (password changed away from this key)
+          const stillExistsInOverrides=Object.values(overrides).some(function(u){return u.nombre===BASE_USERS[k].nombre;});
+          if(!stillExistsInOverrides) return;
+          delete BASE_USERS[k];
+        }
+      });
+    }
+  }catch(e){ console.warn('loadBaseUserOverrides error',e); }
+}
+
+function saveClsEditsLocal(){
+  try{ localStorage.setItem('salones_cls_edits', JSON.stringify(CLS)); }catch(e){}
+}
+function loadClsEditsLocal(){
+  try{
+    const saved=localStorage.getItem('salones_cls_edits');
+    if(saved){
+      const edits=JSON.parse(saved);
+      // Apply saved edits onto CLS
+      edits.forEach(function(edit,i){
+        if(edit&&edit.eliminado){ CLS.splice(i,1); }
+        else if(edit&&edit.asignatura&&CLS[i]){ CLS[i]=edit; }
+      });
+    }
+  }catch(e){}
+}
 async function deleteCls(){
   const idx=parseInt(document.getElementById('ecIdx').value);
   if(!confirm('¿Eliminar esta clase de la programación? Esta acción es permanente.'))return;
-  if(!modoLocal){
-    try{await dbRef.root.child('clases_edit').child(String(idx)).set({eliminado:true,eliminadoPor:UA?UA.nombre:'Sistema',fechaEliminacion:fmtD(new Date())});}
-    catch(e){toast('Error al eliminar','err');return;}
-  }
   CLS.splice(idx,1);
+  saveClsEditsLocal();
+  if(!modoLocal&&dbRef){
+    try{
+      const clsEditRef=dbRef.parent?dbRef.parent.child('clases_edit'):null;
+      if(clsEditRef)await clsEditRef.child(String(idx)).set({eliminado:true,eliminadoPor:UA?UA.nombre:'Sistema',fechaEliminacion:fmtD(new Date())});
+    }catch(e){ console.warn('Firebase delete failed, using localStorage',e); }
+  }
   closePanel('ovEditCls');
   render();
   toast('🗑️ Clase eliminada de la programación','ok');
@@ -2580,6 +2644,8 @@ function clearFilters(){['ctrlFranja','ctrlProg','ctrlFiltro'].forEach(id=>docum
 
 /* ═══ EVENTOS ═══ */
 document.addEventListener('DOMContentLoaded',()=>{
+  // Cargar contraseñas y permisos guardados de usuarios base
+  loadBaseUserOverrides();
   document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('ctrlFecha').value=FECHA;
 
