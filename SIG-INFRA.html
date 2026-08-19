@@ -891,23 +891,27 @@ function renderDashboard(){
     var subFase=p.fase==='pre'?(p.fasePrec||'necesidad'):p.fase==='cont'?(p.faseCont||'acta_inicio'):(p.fasePos||'acta_final');
     fc[subFase]=(fc[subFase]||0)+1;
     if(p.cdp>0)totalCdp+=p.cdp;
-    if(p.fase==='cont'||(p.fasePrec&&['adjudicacion','suscripcion'].includes(p.fasePrec)))adj++;
-    if(p.faseCont==='ejecucion')ejec++;
-    if(p.fasePos==='finalizado')fin++;
+    // Count adjudicados correctly
+    if(p.adjudicado||p.fase==='cont'||p.fase==='pos') adj++;
+    if(p.faseCont==='ejecucion'||(p.statusActual||'').toUpperCase().indexOf('EJECUCION')>=0) ejec++;
+    if(p.fase==='pos'||(p.statusActual||'').toUpperCase().indexOf('FINALIZADO')>=0||(p.statusActual||'').toUpperCase().indexOf('LIQUIDADO')>=0) fin++;
   });
   const avg=P.length?Math.round(P.reduce((s,p)=>s+p.avance,0)/P.length):0;
   const sc=P.filter(p=>p.sede==='Sede Central').length;
   const te=P.filter(p=>p.sede==='Territoriales').length;
 
   const bars=P.slice().sort(function(a,b){return b.avance-a.avance;}).map(function(p){
-    var f=FASES[p.fase]||{color:'#888',label:p.fase};
+    var sf=p.fase==='pre'?(p.fasePrec||'necesidad'):p.fase==='cont'?(p.faseCont||'acta_inicio'):(p.fasePos||'acta_final');
+    var f=FASES[sf]||{color:'#888',label:sf};
+    var av=p.avance||0;
+    var avC=av>=70?'#059669':av>=40?'#0284c7':'#f59e0b';
     return '<div class="prog-row">'
       +'<div class="prog-top">'
         +'<span class="prog-name">'+esc(p.nombre)+'</span>'
-        +'<span class="prog-pct" style="color:'+f.color+';">'+p.avance+'%</span>'
+        +'<span class="prog-pct" style="color:'+avC+';">'+av+'%</span>'
       +'</div>'
-      +'<div class="prog-bar"><div class="prog-fill" style="width:'+p.avance+'%;background:'+f.color+';"></div></div>'
-      +'<div class="prog-sub">'+esc(f.label||p.fase)+(p.tecnico?' · '+esc(p.tecnico.split(' ')[0]):'')+'</div>'
+      +'<div class="prog-bar"><div class="prog-fill" style="width:'+av+'%;background:'+avC+';"></div></div>'
+      +'<div class="prog-sub" style="color:'+f.color+';">'+esc(f.label)+(p.tecnico?' · '+esc(p.tecnico.split(' ')[0]):'')+'</div>'
     +'</div>';
   }).join('');
 
@@ -1050,45 +1054,43 @@ function renderDashboard(){
     if(cdpLabel)cdpLabel.textContent=`Total: ${fmtM(totalF)}`;
   }
 
-  setTimeout(()=>{
-    const fases=Object.keys(fc).filter(f=>fc[f]>0);
-    const isDark=DARK;
-    const tk=isDark?'rgba(255,255,255,.55)':'#64748b';
-    const gridC=isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)';
-    const animOpts={duration:900,easing:'easeInOutQuart'};
+  setTimeout(function(){
+    var fases=Object.keys(fc).filter(function(f){return fc[f]>0;});
+    var isDark=DARK;
+    var tk=isDark?'rgba(255,255,255,.55)':'#64748b';
+    var gridC=isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)';
+    var animOpts={duration:700,easing:'easeInOutQuart'};
     
-    // Chart 1: Donut por fase (agrupado por grupo Pre/Cont/Pos)
-    const c1=document.getElementById('cFase');
+    var c1=document.getElementById('cFase');
     if(c1){
-      const grupos={pre:{label:'Precontractual',color:'#6366f1',count:0},cont:{label:'Contractual',color:'#0284c7',count:0},pos:{label:'Poscontractual',color:'#059669',count:0}};
-      fases.forEach(f=>{const g=FASES[f]?.grupo||'pre';if(grupos[g])grupos[g].count+=fc[f];});
-      const gKeys=Object.keys(grupos).filter(k=>grupos[k].count>0);
+      var grupos={pre:{label:'Precontractual',color:'#6366f1',count:0},cont:{label:'Contractual',color:'#0284c7',count:0},pos:{label:'Poscontractual',color:'#059669',count:0}};
+      fases.forEach(function(f){var g=(FASES[f]&&FASES[f].grupo)||'pre';if(grupos[g])grupos[g].count+=fc[f];});
+      var gKeys=Object.keys(grupos).filter(function(k){return grupos[k].count>0;});
       if(charts.fase)charts.fase.destroy();
       charts.fase=new Chart(c1,{type:'doughnut',data:{
-        labels:gKeys.map(k=>grupos[k].label),
-        datasets:[{data:gKeys.map(k=>grupos[k].count),
-          backgroundColor:gKeys.map(k=>grupos[k].color),
-          borderWidth:3,borderColor:isDark?'#1e293b':'#fff',
-          hoverOffset:8,cutout:'72%'}]
+        labels:gKeys.map(function(k){return grupos[k].label;}),
+        datasets:[{data:gKeys.map(function(k){return grupos[k].count;}),
+          backgroundColor:gKeys.map(function(k){return grupos[k].color;}),
+          borderWidth:3,borderColor:isDark?'#1e293b':'#fff',hoverOffset:8,cutout:'72%'}]
       },options:{responsive:true,maintainAspectRatio:false,animation:animOpts,
         plugins:{legend:{display:true,position:'bottom',labels:{color:tk,font:{size:11,weight:'700'},padding:14,usePointStyle:true}},
-          tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.raw+' proyectos'}}}
+          tooltip:{callbacks:{label:function(ctx){return ' '+ctx.label+': '+ctx.raw+' proyectos';}}}}
       }});
     }
     
-    // Chart 2: Barras horizontales por sede  
-    const c2=document.getElementById('cSede');
+    var c2=document.getElementById('cSede');
     if(c2){
-      const sedeData=[...new Set(PROJ.map(p=>p.sede))].map(s=>({sede:s,count:PROJ.filter(p=>p.sede===s).length})).sort((a,b)=>b.count-a.count);
-      const sedeColors={'Sede Central':'rgba(14,116,144,.85)','Territoriales':'rgba(124,58,237,.85)','Ejecución Territorial':'rgba(5,150,105,.85)'};
+      var sedes=[...new Set(PROJ.map(function(p){return p.sede;}))];
+      var sedeData=sedes.map(function(s){return {sede:s,count:PROJ.filter(function(p){return p.sede===s;}).length};}).sort(function(a,b){return b.count-a.count;});
+      var sedeColors={'Sede Central':'rgba(14,116,144,.85)','Territoriales':'rgba(124,58,237,.85)','Ejecución Territorial':'rgba(5,150,105,.85)'};
       if(charts.sede)charts.sede.destroy();
       charts.sede=new Chart(c2,{type:'bar',data:{
-        labels:sedeData.map(s=>s.sede),
-        datasets:[{data:sedeData.map(s=>s.count),
-          backgroundColor:sedeData.map(s=>sedeColors[s.sede]||'rgba(99,102,241,.8)'),
+        labels:sedeData.map(function(s){return s.sede;}),
+        datasets:[{data:sedeData.map(function(s){return s.count;}),
+          backgroundColor:sedeData.map(function(s){return sedeColors[s.sede]||'rgba(99,102,241,.8)';}),
           borderRadius:8,borderSkipped:false}]
       },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:animOpts,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.raw+' proyectos'}}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' '+ctx.raw+' proyectos';}}}},
         scales:{x:{beginAtZero:true,ticks:{stepSize:1,color:tk,font:{size:11}},grid:{color:gridC}},
           y:{ticks:{color:tk,font:{size:11,weight:'600'}},grid:{display:false}}}
       }});
@@ -1104,7 +1106,13 @@ function renderProyectos(){
   const search=(window._pSearch||'').toLowerCase();
   const ff=window._pFase||'';
   const fs=window._pSede||'';
-  let P=PROJ.filter(p=>(!search||p.nombre.toLowerCase().includes(search)||p.objeto?.toLowerCase().includes(search))&&(!ff||p.fase===ff)&&(!fs||p.sede===fs));
+  let P=PROJ.filter(function(p){
+    var matchSearch=!search||(p.nombre||'').toLowerCase().includes(search)||(p.objeto||'').toLowerCase().includes(search)||(p.tecnico||'').toLowerCase().includes(search)||(p.numeroSecop||'').toLowerCase().includes(search);
+    var subFase=p.fase==='pre'?(p.fasePrec||'necesidad'):p.fase==='cont'?(p.faseCont||'acta_inicio'):(p.fasePos||'acta_final');
+    var matchFase=!ff||(p.fase===ff||subFase===ff);
+    var matchSede=!fs||p.sede===fs;
+    return matchSearch&&matchFase&&matchSede;
+  });
   const sedes=[...new Set(PROJ.map(p=>p.sede))];
 
   mc.innerHTML=`
@@ -1144,39 +1152,33 @@ function renderProyectos(){
 }
 
 function projCard(p){
-  const f=FASES[p.fase]||{label:p.fase,color:'#888',sem:'sem-gris'};
-  return `<div class="proj-card" data-id="${esc(p.id)}">
-    <div class="pc-header">
-      <div class="pc-sede">${esc(p.sede)}</div>
-      <div class="pc-title">${esc(p.nombre)}</div>
-      <div class="pc-tipo">${esc(p.tipo)}</div>
-    </div>
-    <div class="pc-body">
-      <div class="fase-chip" style="background:${f.color}1a;color:${f.color};">
-        <div class="fase-dot" style="background:${f.color};"></div>${f.label}
-      </div>
-      <div class="prog-row">
-        <div class="prog-top">
-          <span style="font-size:11px;color:var(--muted);">Avance precontractual</span>
-          <span class="prog-pct" style="color:${f.color};">${p.avance}%</span>
-        </div>
-        <div class="prog-bar"><div class="prog-fill" style="width:${p.avance}%;background:${f.color};"></div></div>
-      </div>
-      <div class="pc-team">
-        ${p.tecnico?`<span class="team-chip">👷 ${esc(p.tecnico.split(' ')[0])}</span>`:''}
-        ${p.juridico?`<span class="team-chip">⚖️ ${esc(p.juridico.split(' ')[0])}</span>`:''}
-        ${p.adjudicado?'<span class="team-chip" style="color:#059669;">✓ Adjudicado</span>':''}
-      </div>
-    </div>
-    <div class="pc-footer">
-      <div class="pc-cdp">${p.cdp>0?fmtM(p.cdp):'CDP por definir'}</div>
-      ${p.secop?`<a class="secop-link" href="${esc(p.secop)}" target="_blank" onclick="event.stopPropagation()">🔗 SECOP</a>`:''}
-    </div>
-  </div>`;
+  var subFase=p.fase==='pre'?(p.fasePrec||'necesidad'):p.fase==='cont'?(p.faseCont||'acta_inicio'):(p.fasePos||'acta_final');
+  var f=FASES[subFase]||FASES[p.fase]||{label:p.fase||'—',color:'#888',sem:'sem-gris'};
+  var g=GRUPO_COLOR[f.grupo]||f.color||'#888';
+  var av=p.avance||0;
+  var avColor=av>=70?'#059669':av>=40?'#0284c7':'#f59e0b';
+  return '<div class="proj-card" data-id="'+esc(p.id)+'" style="border-top:3px solid '+g+';">'
+    +'<div class="pc-head">'
+      +'<div>'
+        +'<div class="pc-title">'+esc(p.nombre)+'</div>'
+        +(p.numeroSecop?'<div style="font-size:10.5px;font-weight:700;color:var(--cyan);margin-bottom:3px;">📋 SECOP: '+esc(p.numeroSecop)+'</div>':'')
+        +'<div class="pc-tipo">'+esc(p.tipo||'—')+'</div>'
+      +'</div>'
+      +'<span style="font-size:10px;font-weight:800;color:'+f.color+';background:'+f.color+'18;padding:2px 8px;border-radius:999px;white-space:nowrap;">'+esc(f.label)+'</span>'
+    +'</div>'
+    +'<div class="pc-body">'
+      +'<div class="pc-row"><span>Técnico</span><strong>'+esc((p.tecnico||'Sin asignar').split(' ')[0]+(p.tecnico&&p.tecnico.split(' ').length>1?' '+p.tecnico.split(' ')[1]:''))+'</strong></div>'
+      +'<div class="pc-row"><span>Jurídico</span><strong>'+esc((p.juridico||'Sin asignar').split(' ')[0]+(p.juridico&&p.juridico.split(' ').length>1?' '+p.juridico.split(' ')[1]:''))+'</strong></div>'
+      +'<div class="pc-row"><span>CDP</span><strong>'+(p.cdp>0?fmtMM(p.cdp):'Sin CDP')+'</strong></div>'
+    +'</div>'
+    +'<div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;">'
+      +'<div class="prog-bar" style="flex:1;margin:0;height:5px;"><div class="prog-fill" style="width:'+av+'%;background:'+avColor+';border-radius:0;"></div></div>'
+      +'<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+avColor+';">'+av+'%</span>'
+    +'</div>'
+  +'</div>';
 }
 
-// ══ PROJECT MODAL ══
-const TEAM_KEY='sig_teams';
+
 function getTeams(){
   try{const d=localStorage.getItem(TEAM_KEY);return d?JSON.parse(d):null;}catch(e){return null;}
 }
@@ -1213,7 +1215,7 @@ function openProjModal(id){
       adiciones:[],adicion:false,valorAdicion:0,descAdicion:'',
       avanceContractual:0,avancePoscontractual:0,pagado:0,actasPago:0,retencion:0,
       fechaActaFinal:'',pagos:[],
-      valorContrato:0,fechaInicio:'',fechaFin:'',rutaDocumentos:'',observaciones:'',historial:[]
+      valorContrato:0,fechaInicio:'',fechaFin:'',rutaDocumentos:'',numeroSecop:'',observaciones:'',historial:[]
     };
     const f=p?Object.assign({},defaults,p):defaults;
     if(!f.pagos||!Array.isArray(f.pagos))f.pagos=[];
@@ -1291,121 +1293,95 @@ function openProjModal(id){
       +'</div>'
       +'<input type="hidden" id="mFaseBloque" value="'+f.fase+'">'
 
-      // ── Información general ──
-      +'<div class="section-sep">Informacion general</div>'
-      +field('Nombre del proyecto','<input id="mNom" value="'+esc(f.nombre)+'" '+dis+'>')
-      +row2(
-        field('Sede','<select id="mSede" '+dis+'><option '+(f.sede==='Sede Central'?'selected':'')+'>Sede Central</option><option '+(f.sede==='Territoriales'?'selected':'')+'>Territoriales</option></select>'),
-        field('Tipo de proceso','<select id="mTipo" '+dis+'><option '+(f.tipo==='Seleccion abreviada menor cuantia'?'selected':'')+'>Seleccion abreviada menor cuantia</option><option '+(f.tipo==='Licitacion publica'?'selected':'')+'>Licitacion publica</option><option '+(f.tipo==='Subasta inversa'?'selected':'')+'>Subasta inversa</option><option '+(f.tipo==='Contratacion directa'?'selected':'')+'>Contratacion directa</option><option '+(f.tipo==='Minima cuantia'?'selected':'')+'>Minima cuantia</option><option '+(f.tipo==='Por definir'?'selected':'')+'>Por definir</option></select>')
-      )
-      +field('Objeto contractual','<textarea id="mObj" '+dis+'>'+esc(f.objeto||'')+'</textarea>')
+      // ══ CAMPOS GENERALES (siempre visibles, compactos) ══
+      +'<div style="background:var(--surface);border-radius:10px;padding:12px 14px;margin-bottom:14px;border:1px solid var(--border);">'
+        +row2(field('Nombre del proyecto','<input id="mNom" value="'+esc(f.nombre)+'" '+dis+'>'),field('N° SECOP','<input id="mSecop" value="'+esc(f.numeroSecop||'')+'" placeholder="ESAP-GIM-SA-001-2026" '+dis+'>'))
+        +row2(
+          field('Sede','<select id="mSede" '+dis+'><option '+(f.sede==='Sede Central'?'selected':'')+'>Sede Central</option><option '+(f.sede==='Territoriales'?'selected':'')+'>Territoriales</option><option '+(f.sede==='Ejecución Territorial'?'selected':'')+'>Ejecución Territorial</option></select>'),
+          field('Tipo de proceso','<select id="mTipo" '+dis+'><option '+(f.tipo==='Seleccion abreviada menor cuantia'?'selected':'')+'>Seleccion abreviada menor cuantia</option><option '+(f.tipo==='Licitacion publica'?'selected':'')+'>Licitacion publica</option><option '+(f.tipo==='Minima cuantia'?'selected':'')+'>Minima cuantia</option><option '+(f.tipo==='Contratacion directa'?'selected':'')+'>Contratacion directa</option></select>')
+        )
+        +field('Objeto contractual','<textarea id="mObj" rows="2" '+dis+'>'+esc(f.objeto||'')+'</textarea>')
+      +'</div>'
 
-      // ── Equipo responsable ──
-      +'<div class="section-sep">Equipo responsable</div>'
-      +row2(field('Tecnico responsable',sel('mTec',tecnicos,f.tecnico,dis)),field('Apoyo juridico',sel('mJur',juridicos,f.juridico,dis)))
-      +row2(field('Apoyo financiero',sel('mFin',financieros,f.financiero,dis)),field('Apoyo a la supervision',sel('mApSup',tecnicos,f.apoyoSupervision,dis)))
-      +row2(field('Supervisor de obra',sel('mSup',supervisores,f.supervisor,dis)),'<div></div>')
-
-      // ── BLOQUE PRECONTRACTUAL ──
+      // ══ BLOQUE PRECONTRACTUAL ══
       +'<div id="bloque_pre" style="'+(f.fase==='pre'?'':'display:none;')+'">'
         +'<div style="background:#6366f10d;border:2px solid #6366f1;border-radius:10px;padding:14px 16px;margin-bottom:14px;">'
-          +'<div style="font-size:11px;font-weight:800;color:#4338ca;text-transform:uppercase;margin-bottom:12px;">Etapa Precontractual</div>'
-          +row2(
-            field('Fase precontractual actual',faseSelect('mFasePrec','pre',f.fasePrec,dis)),
-            field('% Avance precontractual',num('mAvance',f.avance,dis,'0')+' <small style="color:var(--muted);font-size:10.5px;">Se actualiza arriba en tiempo real</small>')
-          )
-          +row2(
-            field('Equipo que lo tiene ahora','<select id="mEqActual" '+dis+'><option value="tecnico" '+(f.equipoActual==='tecnico'?'selected':'')+'>Equipo Tecnico</option><option value="juridico" '+(f.equipoActual==='juridico'?'selected':'')+'>Equipo Juridico</option><option value="financiero" '+(f.equipoActual==='financiero'?'selected':'')+'>Equipo Financiero</option><option value="coordinacion" '+(f.equipoActual==='coordinacion'?'selected':'')+'>Coordinacion</option></select>'),
-            field('Link SECOP II','<input id="mSecop" value="'+esc(f.secop||'')+'" placeholder="https://www.secop.gov.co/..." '+dis+'>')
-          )
+          +'<div style="font-size:11px;font-weight:800;color:#4338ca;text-transform:uppercase;margin-bottom:12px;">📋 Etapa Precontractual</div>'
+          +row2(field('Equipo tecnico responsable',sel('mTec',tecnicos,f.tecnico,dis)),field('Apoyo juridico',sel('mJur',juridicos,f.juridico,dis)))
+          +row2(field('Apoyo financiero',sel('mFin',financieros,f.financiero,dis)),field('Apoyo a la supervision',sel('mApSup',tecnicos,f.apoyoSupervision,dis)))
+          +row2(field('Supervisor de obra',sel('mSup',supervisores,f.supervisor,dis)),field('Equipo que lo tiene ahora','<select id="mEqActual" '+dis+'><option value="tecnico" '+(f.equipoActual==='tecnico'?'selected':'')+'>Equipo Tecnico</option><option value="juridico" '+(f.equipoActual==='juridico'?'selected':'')+'>Equipo Juridico</option><option value="financiero" '+(f.equipoActual==='financiero'?'selected':'')+'>Equipo Financiero</option><option value="coordinacion" '+(f.equipoActual==='coordinacion'?'selected':'')+'>Coordinacion</option></select>'))
+          +row2(field('Fase precontractual actual',faseSelect('mFasePrec','pre',f.fasePrec,dis)),field('% Avance precontractual',num('mAvance',f.avance,dis,'0')+' <small style="color:var(--muted);font-size:10.5px;">Se actualiza arriba</small>'))
+          +row2(field('CDP ($)',num('mCdp',f.cdp,dis,'0')),field('Fecha inicio estimada','<input type="date" id="mFini" value="'+(f.fechaInicio||'')+'" '+dis+'>'))
+          +row2(field('Fecha fin programada','<input type="date" id="mFfin" value="'+(f.fechaFin||'')+'" '+dis+'>'),field('Link SECOP II','<input id="mSecop2" value="'+esc(f.secop||'')+'" placeholder="https://www.secop.gov.co/..." '+dis+'>'))
+          +field('Ruta documentos (G: o Drive)','<div style="display:flex;gap:6px;"><input id="mRuta" style="flex:1;" type="text" '+dis+' value="'+esc(f.rutaDocumentos||'')+'" placeholder="G:\\GIM\\Proyectos\\...">'+(f.rutaDocumentos?'<a href="javascript:void(0)" onclick="window.open(document.getElementById(\'mRuta\').value,\'_blank\')" class="btn btn-sm">Abrir</a>':'')+'</div>')
+          +field('Observaciones','<textarea id="mObs" '+dis+'>'+esc(f.observaciones||'')+'</textarea>')
         +'</div>'
       +'</div>'
 
-      // ── BLOQUE CONTRACTUAL ──
+
+      // ══ BLOQUE CONTRACTUAL ══
       +'<div id="bloque_cont" style="'+(f.fase==='cont'?'':'display:none;')+'">'
+        // Resumen de fase precontractual
+        +'<div style="background:var(--surface);border:1px solid #6366f130;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;">'
+          +'<div style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;margin-bottom:6px;">ℹ️ Datos de fase precontractual</div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);">'
+            +'<span>👷 <strong style="color:var(--ink);">'+esc(f.tecnico||'Sin asignar')+'</strong></span>'
+            +'<span>⚖️ <strong style="color:var(--ink);">'+esc(f.juridico||'Sin asignar')+'</strong></span>'
+            +'<span>💰 CDP: <strong style="color:#059669;">'+fmtM(f.cdp)+'</strong></span>'
+          +'</div>'
+        +'</div>'
+        // Campos contractuales nuevos
         +'<div style="background:#0284c70d;border:2px solid #0284c7;border-radius:10px;padding:14px 16px;margin-bottom:14px;">'
-          +'<div style="font-size:11px;font-weight:800;color:#0284c7;text-transform:uppercase;margin-bottom:12px;">Etapa Contractual</div>'
-          +row2(
-            field('Fase contractual actual',faseSelect('mFaseCont','cont',f.faseCont,dis)),
-            field('% Avance contractual',num('mAvC',f.avanceContractual,dis,'0'))
-          )
-          +row2(
-            field('Contratista','<input id="mCont" value="'+esc(f.contratista||'')+'" '+dis+'>'),
-            field('Valor contrato ($)',num('mVal',f.valorContrato,dis,'0'))
-          )
+          +'<div style="font-size:11px;font-weight:800;color:#0284c7;text-transform:uppercase;margin-bottom:12px;">📋 Etapa Contractual</div>'
+          +row2(field('Fase contractual actual',faseSelect('mFaseCont','cont',f.faseCont,dis)),field('% Avance contractual',num('mAvC',f.avanceContractual,dis,'0')))
+          +row2(field('Contratista','<input id="mCont" value="'+esc(f.contratista||'')+'" '+dis+'>'),field('Valor contrato ($)',num('mVal',f.valorContrato,dis,'0')))
           +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"><input type="checkbox" id="mAdj" '+(f.adjudicado?'checked':'')+' '+dis+' style="width:auto;"><label for="mAdj" style="font-weight:700;">Proyecto adjudicado</label></div>'
-          // Adiciones — múltiples, dinero o prórroga
           +(()=>{
             const adics=f.adiciones||[];
-            const tipos=['Adicion de dinero','Prorrog de tiempo','Adicion de dinero + Prorroga'];
+            const tipos=['Adicion de dinero','Prorroga de tiempo','Adicion de dinero + Prorroga'];
             let rows='';
             const nRows=Math.max(adics.length+1,3);
             for(let i=0;i<nRows;i++){
               const ad=adics[i]||{tipo:'',valor:0,dias:0,desc:''};
               rows+='<tr style="border-bottom:1px solid #fde68a;">'
                 +'<td style="padding:4px;font-size:11px;font-weight:700;color:#b45309;text-align:center;">'+(i+1)+'</td>'
-                +'<td style="padding:4px;"><select id="adTipo'+i+'" '+dis+' style="width:100%;border:1px solid #fcd34d;border-radius:6px;padding:4px 6px;font-size:11.5px;background:#fffbeb;" onchange="toggleAdicionRow('+i+')">'
-                  +'<option value="">-- Sin adicion --</option>'
-                  +tipos.map(t=>'<option value="'+t+'" '+(ad.tipo===t?'selected':'')+'>'+t+'</option>').join('')
-                +'</select></td>'
-                +'<td style="padding:4px;" id="adValCell'+i+'" '+(ad.tipo&&ad.tipo!=='Prorrog de tiempo'?'':'style="display:none;"')+'><input type="number" id="adValor'+i+'" value="'+(ad.valor||'')+'" placeholder="$0" '+dis+' style="width:100%;border:1px solid #fcd34d;border-radius:6px;padding:4px 6px;font-size:12px;background:#fffbeb;"></td>'
-                +'<td style="padding:4px;" id="adDiasCell'+i+'" '+(ad.tipo&&ad.tipo!=='Adicion de dinero'?'':'style="display:none;"')+'><input type="number" id="adDias'+i+'" value="'+(ad.dias||'')+'" placeholder="dias" '+dis+' style="width:80px;border:1px solid #fcd34d;border-radius:6px;padding:4px 6px;font-size:12px;background:#fffbeb;"></td>'
-                +'<td style="padding:4px;"><input id="adDesc'+i+'" value="'+esc(ad.desc||'')+'" placeholder="Motivo / descripcion" '+dis+' style="width:100%;border:1px solid #fcd34d;border-radius:6px;padding:4px 6px;font-size:12px;background:#fffbeb;"></td>'
-                +'</tr>';
+                +'<td style="padding:4px;"><select id="adTipo'+i+'" '+dis+' style="width:100%;border:1px solid #fcd34d;border-radius:6px;padding:4px 6px;font-size:11.5px;background:#fffbeb;" onchange="toggleAdicionRow('+i+')"><option value="">-- Sin adicion --</option>'+tipos.map(function(t){return '<option value="'+t+'" '+(ad.tipo===t?'selected':'')+'>'+t+'</option>';}).join('')+'</select></td>'
+                +'<td style="padding:4px;" id="adValCell'+i+'" '+(ad.tipo&&ad.tipo!=='Prorroga de tiempo'?'':'style="display:none;"')+'><input type="number" id="adValor'+i+'" value="'+(ad.valor||'')+'" '+dis+' style="width:100%;border:1px solid #fcd34d;border-radius:6px;padding:4px 6px;font-size:12px;background:#fffbeb;"></td>'
+                +'<td style="padding:4px;" id="adDiasCell'+i+'" '+(ad.tipo&&ad.tipo!=='Adicion de dinero'?'':'style="display:none;"')+'><input type="number" id="adDias'+i+'" value="'+(ad.dias||'')+'" '+dis+' style="width:80px;border:1px solid #fcd34d;border-radius:6px;padding:4px 6px;font-size:12px;background:#fffbeb;"></td>'
+                +'<td style="padding:4px;"><input id="adDesc'+i+'" value="'+esc(ad.desc||'')+'" '+dis+' style="width:100%;border:1px solid #fcd34d;border-radius:6px;padding:4px 6px;font-size:12px;background:#fffbeb;"></td>'
+              +'</tr>';
             }
             return '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 14px;margin-top:4px;">'
               +'<div style="font-size:11px;font-weight:800;color:#b45309;text-transform:uppercase;margin-bottom:10px;">Adiciones al contrato</div>'
-              +'<div style="overflow-x:auto;">'
-              +'<table style="width:100%;border-collapse:collapse;font-size:12px;">'
-              +'<thead><tr style="background:#f59e0b;color:#fff;">'
-                +'<th style="padding:6px 4px;width:28px;">#</th>'
-                +'<th style="padding:6px 4px;">Tipo de adicion</th>'
-                +'<th style="padding:6px 4px;">Valor ($)</th>'
-                +'<th style="padding:6px 4px;">Dias</th>'
-                +'<th style="padding:6px 4px;">Motivo / descripcion</th>'
-              +'</tr></thead>'
-              +'<tbody>'+rows+'</tbody>'
-              +'</table></div>'
-              +'<div id="adicionResumen" style="margin-top:8px;font-size:12px;color:#92400e;"></div>'
-            +'</div>';
+              +'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f59e0b;color:#fff;"><th style="padding:6px 4px;width:28px;">#</th><th>Tipo</th><th>Valor ($)</th><th>Dias</th><th>Motivo</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+              +'<div id="adicionResumen" style="margin-top:8px;font-size:12px;color:#92400e;"></div></div>';
           })()
+          +field('Observaciones contractuales','<textarea id="mObs" '+dis+'>'+esc(f.observaciones||'')+'</textarea>')
         +'</div>'
       +'</div>'
 
-      // ── BLOQUE POSCONTRACTUAL ──
+
+      // ══ BLOQUE POSCONTRACTUAL ══
       +'<div id="bloque_pos" style="'+(f.fase==='pos'?'':'display:none;')+'">'
-        +'<div style="background:#0596690d;border:2px solid #059669;border-radius:10px;padding:14px 16px;margin-bottom:14px;">'
-          +'<div style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;margin-bottom:12px;">Etapa Poscontractual — Seguimiento de pagos</div>'
-          +row2(
-            field('Fase poscontractual actual',faseSelect('mFasePos','pos',f.fasePos,dis)),
-            field('% Avance poscontractual',num('mAvP',f.avancePoscontractual,dis,'0'))
-          )
-          +'<div style="overflow-x:auto;margin-bottom:14px;">'
-            +'<table style="width:100%;border-collapse:collapse;font-size:12px;">'
-              +'<thead><tr style="background:#059669;color:#fff;">'
-                +'<th style="padding:6px 4px;width:28px;">#</th>'
-                +'<th style="padding:6px 4px;">Fecha</th>'
-                +'<th style="padding:6px 4px;">Descripcion / Acta</th>'
-                +'<th style="padding:6px 4px;">Valor pagado ($)</th>'
-                +'<th style="padding:6px 4px;">Avance obra %</th>'
-              +'</tr></thead>'
-              +'<tbody>'+pagoRows+'</tbody>'
-            +'</table>'
+        // Resumen de fases anteriores
+        +'<div style="background:var(--surface);border:1px solid #0284c730;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;">'
+          +'<div style="font-size:10px;font-weight:800;color:#0284c7;text-transform:uppercase;margin-bottom:6px;">ℹ️ Datos de fases anteriores</div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);">'
+            +'<span>👷 <strong style="color:var(--ink);">'+esc(f.tecnico||'Sin asignar')+'</strong></span>'
+            +'<span>🏢 Contratista: <strong style="color:var(--ink);">'+esc(f.contratista||'Sin registrar')+'</strong></span>'
+            +'<span>💰 Valor: <strong style="color:#059669;">'+fmtM(f.valorContrato)+'</strong></span>'
           +'</div>'
-          +row2(
-            field('Valor retencion ($)',num('mRetencion',f.retencion,dis,'0')),
-            field('Fecha acta final','<input type="date" id="mFActa" value="'+(f.fechaActaFinal||'')+'" '+dis+'>')
-          )
+        +'</div>'
+        +'<div style="background:#0596690d;border:2px solid #059669;border-radius:10px;padding:14px 16px;margin-bottom:14px;">'
+          +'<div style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;margin-bottom:12px;">✅ Etapa Poscontractual</div>'
+          +row2(field('Fase poscontractual actual',faseSelect('mFasePos','pos',f.fasePos,dis)),field('% Avance poscontractual',num('mAvP',f.avancePoscontractual,dis,'0')))
+          +'<div style="overflow-x:auto;margin-bottom:14px;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#059669;color:#fff;"><th style="padding:6px 4px;width:28px;">#</th><th>Fecha</th><th>Descripcion / Acta</th><th>Valor pagado ($)</th><th>Avance obra %</th></tr></thead><tbody>'+pagoRows+'</tbody></table></div>'
+          +row2(field('Valor retencion ($)',num('mRetencion',f.retencion,dis,'0')),field('Fecha acta final','<input type="date" id="mFActa" value="'+(f.fechaActaFinal||'')+'" '+dis+'>'))
           +'<div id="posResumen" style="background:#fff;border-radius:8px;border:1px solid #d1fae5;padding:10px 12px;font-size:12px;color:var(--muted);margin-top:8px;"></div>'
+          +field('Observaciones poscontractuales','<textarea id="mObs" '+dis+'>'+esc(f.observaciones||'')+'</textarea>')
         +'</div>'
       +'</div>'
 
-      // ── Valores economicos ──
-      +'<div class="section-sep">Valores economicos</div>'
-      +row2(field('CDP ($)',num('mCdp',f.cdp,dis,'0')),field('Fecha inicio','<input type="date" id="mFini" value="'+(f.fechaInicio||'')+'" '+dis+'>'))
-      +row2(field('Fecha fin programada','<input type="date" id="mFfin" value="'+(f.fechaFin||'')+'" '+dis+'>'),field('Link SECOP II (contractual)','<input id="mSecop2" value="'+esc(f.secop||'')+'" placeholder="https://www.secop.gov.co/..." '+dis+'>'))
-      +field('Ruta de documentos (carpeta G: o Drive)','<div style="display:flex;gap:6px;">'+'<input id="mRuta" style="flex:1;" type="text" '+dis+' value="'+esc(f.rutaDocumentos||'')+'" placeholder="G:\\GIM\\Proyectos\\Biblioteca — o — https://drive.google.com/...">'+(f.rutaDocumentos?'<a href="javascript:void(0)" id="mRutaLink" onclick="window.open(document.getElementById(\'mRuta\').value,\'_blank\')" class="btn btn-sm" title="Abrir carpeta">Abrir</a>':'')+'</div>')
-      +field('Observaciones','<textarea id="mObs" '+dis+'>'+esc(f.observaciones||'')+'</textarea>')
       +histHTML
       +'</div>'
       +'<div class="modal-foot">'
@@ -1417,6 +1393,19 @@ function openProjModal(id){
         +'</div>'
       +'</div>';
 
+    document.getElementById('modal').innerHTML=html;
+    openModal();
+    // Sync obs to all bloque textareas
+    ['mObsPre','mObsCont','mObsPos'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el) el.value=f.observaciones||'';
+    });
+    document.getElementById('mSave')?.addEventListener('click',()=>saveProj(f,isNew));
+    document.getElementById('mDel')?.addEventListener('click',()=>delProj(f.id));
+    document.getElementById('btnInfProj')?.addEventListener('click',()=>exportProyecto(f.id));
+    ['mAvance','mAvC','mAvP'].forEach(id=>{
+      document.getElementById(id)?.addEventListener('input',updateStages);
+    });
     document.getElementById('modal').innerHTML=html;
     openModal();
     document.getElementById('mSave')?.addEventListener('click',()=>saveProj(f,isNew));
@@ -1484,6 +1473,7 @@ function toggleAdicionRow(i){
 function saveProj(orig,isNew){
   try{
   const nombre=document.getElementById('mNom')?.value?.trim()||'';
+  orig.numeroSecop=document.getElementById('mSecop')?.value?.trim()||orig.numeroSecop||'';
   if(!nombre){toast('El nombre es obligatorio','error');return;}
   const prev={fase:orig.fase,avance:orig.avance,tecnico:orig.tecnico,adjudicado:orig.adjudicado};
   orig.nombre=nombre;orig.sede=document.getElementById('mSede')?.value||orig.sede||'Sede Central';
@@ -1534,7 +1524,10 @@ function saveProj(orig,isNew){
   orig.cdp=parseFloat(document.getElementById('mCdp')?.value)||0;orig.valorContrato=parseFloat(document.getElementById('mVal')?.value)||0;
   orig.fechaInicio=document.getElementById('mFini')?.value||'';orig.fechaFin=document.getElementById('mFfin')?.value||'';
   orig.rutaDocumentos=document.getElementById('mRuta')?.value?.trim()||'';
-  orig.observaciones=document.getElementById('mObs')?.value?.trim()||'';
+  // Read observaciones from whichever bloque is active
+  var _fase=document.getElementById('mFaseBloque')?.value||'pre';
+  var _obsId=_fase==='cont'?'mObsCont':_fase==='pos'?'mObsPos':'mObsPre';
+  orig.observaciones=document.getElementById(_obsId)?.value?.trim()||orig.observaciones||'';
   if(!orig.historial)orig.historial=[];
   const cambios=[];
   if(prev.fase!==orig.fase)cambios.push('Fase: '+FASES[prev.fase]?.label+' → '+FASES[orig.fase]?.label);
@@ -1560,10 +1553,10 @@ function saveProj(orig,isNew){
   save();
   closeModal();
   try{
-    if(typeof renderProyectos==='function') renderProyectos();
-  }catch(e){
-    console.error('renderProyectos error:',e);
-  }
+    if(PAGE==='proyectos'&&typeof renderProyectos==='function') renderProyectos();
+    if(PAGE==='dashboard'&&typeof renderDashboard==='function') renderDashboard();
+    // Always update dashboard data even if not on it (next visit shows fresh data)
+  }catch(e){ console.error('render error:',e); }
   const confirmMsg=isNew?'✅ Proyecto creado':'✅ Guardado: avance '+orig.avance+'%'+(orig.tecnico?' · '+orig.tecnico.split(' ')[0]:'');
   toast(confirmMsg,'success');
   }catch(err){
@@ -1617,6 +1610,7 @@ function exportProyecto(id){
   <div class="section">
     <h2>📋 Información general</h2>
     <div class="row">
+      <div class="field"><div class="lbl">N° SECOP</div><div class="val">${p.numeroSecop?'<span style="color:var(--cyan);font-weight:700;">'+esc(p.numeroSecop)+'</span>':'<span style="color:var(--muted);">Sin número</span>'}</div></div>
       <div class="field"><div class="lbl">Objeto contractual</div><div class="val" style="font-size:12px;">${esc(p.objeto||'—')}</div></div>
       <div class="field"><div class="lbl">CDP</div><div class="val">${p.cdp>0?'$'+Number(p.cdp).toLocaleString('es-CO'):'—'}</div></div>
     </div>
@@ -1877,7 +1871,9 @@ function renderAuditoria(){
   const mc=document.getElementById('page-auditoria');
   const tipos={login:'🔐',logout:'🚪',accion:'📝',fallo:'⚠️',descarga:'⬇️'};
   const tipoColor={login:'#059669',logout:'#6366f1',accion:'#0e7490',fallo:'#dc2626',descarga:'#f59e0b'};
-  const tipo_opts=['login','logout','accion','fallo'].map(t=>`<option value="${t}">${tipos[t]} ${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('');
+  const tipo_opts=['login','logout','accion','fallo'].map(function(t){
+    return '<option value="'+t+'">'+tipos[t]+' '+t.charAt(0).toUpperCase()+t.slice(1)+'</option>';
+  }).join('');
   const filtroTipo=window._aTipo||'';
   const filtroUser=window._aUser||'';
   let logs=AUDIT.filter(a=>(!filtroTipo||a.tipo===filtroTipo)&&(!filtroUser||a.usuario===filtroUser));
@@ -1895,34 +1891,38 @@ function renderAuditoria(){
     </select>
     <select id="aUser" class="btn btn-sm" style="font-size:12.5px;">
       <option value="">Todos los usuarios</option>
-      ${[...new Set(AUDIT.map(a=>a.usuario))].map(u=>`<option value="${u}" ${filtroUser===u?'selected':''}>${u}</option>`).join('')}
+      ${(function(){return[...new Set(AUDIT.map(function(a){return a.usuario;}))].map(function(u){return '<option value="'+u+'"'+(filtroUser===u?' selected':'')+'>'+esc(u)+'</option>';}).join('');})()} 
     </select>
     <span style="margin-left:auto;font-size:12.5px;color:var(--muted);">${logs.length} registros</span>
   </div>
   <div class="card">
     <div class="scroll-y">
-      ${logs.slice(0,100).map(a=>`
-      <div class="audit-item">
-        <div class="audit-avatar" style="background:${tipoColor[a.tipo]||'#64748b'}22;color:${tipoColor[a.tipo]||'#64748b'};">${tipos[a.tipo]||'📋'}</div>
-        <div class="audit-content">
-          <div class="audit-header">
-            <span class="audit-who">${esc(a.nombre||a.usuario)}</span>
-            <span class="audit-ts">${fmtTS(a.fecha)}</span>
-          </div>
-          <div class="audit-action">${esc(a.accion)}${a.detalle?' — '+esc(a.detalle):''}</div>
-          <div class="audit-meta">
-            <span class="audit-tag">🌐 ${esc(a.ip||'N/D')}</span>
-            <span class="audit-tag">🖥️ ${esc(a.browser)} / ${esc(a.os)}</span>
-            <span class="audit-tag">📱 ${esc(a.device)}</span>
-            <span class="audit-tag">📁 ${esc(a.modulo||'—')}</span>
-          </div>
-        </div>
-      </div>`).join('')||'<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-sub">Sin registros con ese filtro.</div></div>'}
+      ${(function(){
+        if(!logs.length) return '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-sub">Sin registros con ese filtro.</div></div>';
+        return logs.slice(0,100).map(function(a){
+          var c=tipoColor[a.tipo]||'#64748b';
+          var ic=tipos[a.tipo]||'📋';
+          return '<div class="audit-item">'
+            +'<div class="audit-avatar" style="background:'+c+'22;color:'+c+';">'+ic+'</div>'
+            +'<div class="audit-content">'
+              +'<div class="audit-header">'
+                +'<span class="audit-who">'+esc(a.nombre||a.usuario)+'</span>'
+                +'<span class="audit-ts">'+fmtTS(a.fecha)+'</span>'
+              +'</div>'
+              +'<div class="audit-action">'+esc(a.accion)+(a.detalle?' — '+esc(a.detalle):'')+'</div>'
+              +'<div class="audit-meta">'
+                +'<span class="audit-tag">'+esc(a.usuario||'—')+'</span>'
+                +(a.modulo?'<span class="audit-tag">'+esc(a.modulo)+'</span>':'')
+              +'</div>'
+            +'</div>'
+          +'</div>';
+        }).join('');
+      })()}
     </div>
   </div>`;
 
-  document.getElementById('aTipo')?.addEventListener('change',e=>{window._aTipo=e.target.value;renderAuditoria();});
-  document.getElementById('aUser')?.addEventListener('change',e=>{window._aUser=e.target.value;renderAuditoria();});
+  document.getElementById('aTipo')?.addEventListener('change',function(e){window._aTipo=e.target.value;renderAuditoria();});
+  document.getElementById('aUser')?.addEventListener('change',function(e){window._aUser=e.target.value;renderAuditoria();});
 }
 
 // ══ DRIVE MODAL ══
