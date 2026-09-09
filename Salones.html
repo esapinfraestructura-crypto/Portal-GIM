@@ -1659,13 +1659,15 @@ function eventoEn(aula,fecha,franja){
 }
 function estCel(aula,fecha,franja){
   if(BLOQUEADOS.has(aula))return'bloq';
+  // La programacion oficial tiene prioridad sobre reservas puntuales
+  const diaStr=diaEsP(fecha);
+  const c=claseEn(aula,diaStr,franja);
+  if(c)return c.programa==='EP'?'cls-ep':'cls-ap';
+  // Solo muestra reserva si NO hay clase programada en ese espacio
   const r=rsvEnFecha(aula,fecha,franja);
   if(r)return r.estado==='pendiente'?'pend':r.estado==='mantenimiento'?'mant':'rsv';
   const ev=eventoEn(aula,fecha,franja);
   if(ev)return'event';
-  const diaStr=diaEsP(fecha);
-  const c=claseEn(aula,diaStr,franja);
-  if(c)return c.programa==='EP'?'cls-ep':'cls-ap';
   return'free';
 }
 
