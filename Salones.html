@@ -1442,6 +1442,7 @@ let DEPENDENCIAS = [
 const SCHED_VERSION = '2026-2-v5';
 if(localStorage.getItem('salones_sched_v')!==SCHED_VERSION){
   localStorage.removeItem('salones_cls_edits');
+  localStorage.removeItem('salones_deletions');
   localStorage.setItem('salones_sched_v', SCHED_VERSION);
 }
 let CLS = CLASES_2026_2.map(c=>({...c,
@@ -1449,6 +1450,18 @@ let CLS = CLASES_2026_2.map(c=>({...c,
   fi: c.fi||'2026-08-10',
   ff: c.ff||'2026-12-10'
 }));
+// Aplicar eliminaciones por clave estable
+(function(){
+  try{
+    const dels=JSON.parse(localStorage.getItem('salones_deletions')||'[]');
+    if(dels.length>0){
+      CLS=CLS.filter(function(c){
+        const key=c.asignatura+'|'+c.grupo+'|'+c.dia+'|'+c.hi;
+        return dels.indexOf(key)===-1;
+      });
+    }
+  }catch(e){}
+})();
 let PROGS = [{n:'Pregrado 2026-2',m:'AP/EP',tot:CLS.length,fi:'2026-08-10',ff:'2026-11-28'}];
 let RSV = {}, USERS = {}, BLOQUEADOS = new Set(), FECHA_LOCK = null;
 let FECHA=new Date().toISOString().slice(0,10), VISTA='grilla', TAB='grilla';
@@ -2593,14 +2606,15 @@ function loadClsEditsLocal(){
 async function deleteCls(){
   const idx=parseInt(document.getElementById('ecIdx').value);
   if(!confirm('¿Eliminar esta clase de la programación? Esta acción es permanente.'))return;
+  const cls=CLS[idx];
+  // Guardar eliminación por clave estable (no por índice)
+  const delKey=cls.asignatura+'|'+cls.grupo+'|'+cls.dia+'|'+cls.hi;
+  try{
+    let dels=JSON.parse(localStorage.getItem('salones_deletions')||'[]');
+    if(!dels.includes(delKey)) dels.push(delKey);
+    localStorage.setItem('salones_deletions',JSON.stringify(dels));
+  }catch(e){}
   CLS.splice(idx,1);
-  saveClsEditsLocal();
-  if(!modoLocal&&dbRef){
-    try{
-      const clsEditRef=dbRef.parent?dbRef.parent.child('clases_edit'):null;
-      if(clsEditRef)await clsEditRef.child(String(idx)).set({eliminado:true,eliminadoPor:UA?UA.nombre:'Sistema',fechaEliminacion:fmtD(new Date())});
-    }catch(e){ console.warn('Firebase delete failed, using localStorage',e); }
-  }
   closePanel('ovEditCls');
   render();
   toast('🗑️ Clase eliminada de la programación','ok');
