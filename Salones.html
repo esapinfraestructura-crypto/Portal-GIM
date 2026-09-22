@@ -2035,6 +2035,7 @@ function initFirebase(){
     usersRef=db.ref('usuarios_extra');
     bloqRef=db.ref('salones_bloqueados');
     setSyncStatus('Conectando…','wait');
+    render(); // Render inmediato con datos locales (clases sin reservas)
     dbRef.on('value',snap=>{
       RSV={};const d=snap.val();if(d)Object.keys(d).forEach(k=>RSV[k]=d[k]);
       setSyncStatus('🟢 En tiempo real','on');render();cargarEventosIniciales();
