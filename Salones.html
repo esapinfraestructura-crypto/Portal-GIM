@@ -554,6 +554,37 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
   .page-content{padding:12px;}
   .tipo-grid{grid-template-columns:1fr;}
 }
+
+/* ═══ MÓDULO COORDINACIONES DE ÁREA ═══ */
+.mprog-header{background:linear-gradient(135deg,#1e3a5f,#2563a8);color:#fff;padding:16px 24px;border-radius:10px;margin-bottom:16px}
+.mprog-header h2{font-size:17px;font-weight:700;margin-bottom:2px}
+.mprog-header p{font-size:11px;opacity:.7}
+.mprog-kpis{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.mprog-kpi{background:var(--b800);border-radius:8px;padding:12px 18px;flex:1;min-width:100px;border-left:3px solid var(--az-med)}
+.mprog-kpi span{font-size:24px;font-weight:700;color:#60a5fa;display:block}
+.mprog-kpi small{font-size:10px;color:var(--b400)}
+.mprog-grid-wrap{overflow:auto}
+.mprog-table{border-collapse:collapse;font-size:11px;min-width:700px;width:100%}
+.mprog-table th{background:#1e3a5f;color:#fff;padding:6px 8px;font-size:10px;white-space:nowrap;text-align:center;border:1px solid #2d4a6f}
+.mprog-table td{border:1px solid rgba(255,255,255,.07);padding:0;height:48px;vertical-align:top;cursor:pointer}
+.mprog-table td.hora-lbl{background:var(--b800);font-size:10px;color:var(--b400);text-align:center;padding:4px 6px;cursor:default;white-space:nowrap}
+.mc-ap{background:#1e3a5f80;cursor:not-allowed}
+.mc-ep{background:#14532d60;cursor:not-allowed}
+.mc-otra{background:#7c2d1260;cursor:not-allowed}
+.mc-propia{background:#065f4660;cursor:pointer}
+.mc-libre{background:transparent}
+.mc-libre:hover{background:#1d4ed830;border-color:#3b82f6!important}
+.mc-bloq{background:#7f1d1d50;cursor:not-allowed}
+.mc-inner{padding:3px 4px;height:100%;font-size:9px;line-height:1.3}
+.mc-tag{font-weight:700;font-size:8px;padding:1px 3px;border-radius:2px;display:inline-block;margin-bottom:1px}
+.mc-libre-lbl{font-size:9px;color:#3b82f6;font-weight:700;text-align:center;padding-top:14px}
+.mc-propia-edit{font-size:8px;color:#6ee7b7;text-align:right;padding:2px}
+.btn-enviar-gim{background:linear-gradient(135deg,#059669,#047857);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px}
+.btn-enviar-gim:hover{opacity:.9}
+.btn-add-clase{background:#1d4ed8;color:#fff;border:none;padding:8px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer}
+.legend-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:10px;color:var(--b400);align-items:center}
+.leg-c{width:14px;height:14px;border-radius:3px;display:inline-block}
+
 </style>
 </head>
 <body>
@@ -653,6 +684,8 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
       <div class="nav-item" data-tab="busqueda"><i class="bi bi-search"></i> Búsqueda Inteligente</div>
       <div class="sidebar-section">Análisis</div>
       <div class="nav-item" data-tab="indicadores"><i class="bi bi-bar-chart-line"></i> Indicadores</div>
+            <div class="sidebar-section" id="navProgSection" style="display:none">Mi Programación</div>
+      <div class="nav-item" data-tab="miprog" id="navMiProg" style="display:none"><i class="bi bi-calendar-plus"></i> Cargar Programación</div>
       <div class="sidebar-section" id="navAdminSection" style="display:none">Administración</div>
       <div class="nav-item" data-tab="admin" id="navAdmin" style="display:none"><i class="bi bi-shield-lock"></i> Gestión de Usuarios</div>
       <div class="sidebar-footer">
@@ -1249,7 +1282,290 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
 
 <div class="toast-wrap" id="toastWrap"></div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">/* ═══════════════════════════════════════════════════════════════
+   MÓDULO COLABORATIVO — COORDINACIONES DE ÁREA
+   coord.pregrado / coord.posgrado.d / coord.posgrado.n
+═══════════════════════════════════════════════════════════════ */
+
+const AREA_LABELS = {pregrado:'Pregrado',posgrado_d:'Posgrado Diurno',posgrado_n:'Posgrado Nocturno'};
+const AREA_COLORS = {pregrado:'#f59e0b',posgrado_d:'#8b5cf6',posgrado_n:'#ec4899'};
+let PROG_AREAS = {pregrado:{},posgrado_d:{},posgrado_n:{}};  // Firebase programacion_2027_1
+let PROG_REF = null;
+
+// Iniciar listener Firebase para programación de áreas
+function initProgAreas(){
+  if(!db||PROG_REF) return;
+  PROG_REF = db.ref('programacion_2027_1');
+  PROG_REF.on('value', snap=>{
+    const d = snap.val()||{};
+    PROG_AREAS = {pregrado:{},posgrado_d:{},posgrado_n:{}};
+    Object.keys(d).forEach(area=>{
+      if(d[area]) PROG_AREAS[area] = d[area];
+    });
+    // Si estamos en el tab miprog, re-renderizar
+    if(TAB==='miprog') renderMiProg();
+    // También actualizar grilla principal para admins/gestores
+    if(TAB==='grilla') render();
+  });
+}
+
+// Llamar initProgAreas cuando Firebase inicie
+// (se agrega al flujo existente de bootApp)
+
+// Detectar si hay clase de área en un salon/dia/franja
+function claseProgramadaArea(salon, dia, franja){
+  const hf = sigF(franja);
+  for(const area of Object.keys(PROG_AREAS)){
+    const clases = Object.values(PROG_AREAS[area]);
+    const c = clases.find(cl=>
+      normAula(cl.salon)===salon && cl.dia===dia && solapa(cl.hi,cl.hf,franja,hf)
+    );
+    if(c) return {area, clase:c};
+  }
+  return null;
+}
+
+// ── RENDER MÓDULO MI PROGRAMACIÓN ────────────────────────────────
+function renderMiProg(){
+  const cont = document.getElementById('main-content');
+  if(!cont) return;
+  const area = UA.area;
+  const aLabel = AREA_LABELS[area]||area;
+  const aColor = AREA_COLORS[area]||'#60a5fa';
+  const misClases = Object.entries(PROG_AREAS[area]||{});
+  
+  // KPIs
+  const totalMias = misClases.length;
+  const diasUsados = [...new Set(misClases.map(([,c])=>c.dia))].length;
+  const salonesUsados = [...new Set(misClases.map(([,c])=>normAula(c.salon)))].length;
+
+  // Construir tabla grilla compacta
+  const DIAS_PROG = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'];
+  const HORAS_PROG = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+  
+  // Salones visibles (solo los primeros 10 para no saturar)
+  const salonesVis = CAT.slice(0,14);
+
+  let filas = '';
+  HORAS_PROG.forEach(hora=>{
+    filas += '<tr>';
+    filas += `<td class="hora-lbl">${hora}</td>`;
+    salonesVis.forEach(sal=>{
+      const sId = sal.id || sal.nombre;
+      const hf = sigF(hora);
+      // 1. Bloqueado
+      if(BLOQUEADOS.has(sId)){
+        filas+=`<td class="mc-bloq"><div class="mc-inner"><span style="font-size:8px;color:#fca5a5">Bloqueado</span></div></td>`;
+        return;
+      }
+      // 2. Clase oficial AP/EP
+      const of = CLS.find(c=>normAula(c.salon)===sId&&c.dia===DIAS_PROG[0]&&solapa(c.hi,c.hf,hora,hf));
+      if(of){
+        const tag = of.programa==='AP'?'AP':'EP';
+        const bg = of.programa==='AP'?'mc-ap':'mc-ep';
+        filas+=`<td class="${bg}" title="${of.asignatura}"><div class="mc-inner"><span class="mc-tag" style="background:${of.programa==='AP'?'#1e3a5f':'#14532d'};color:#fff">${tag}</span><br><span style="color:rgba(255,255,255,.7)">${(of.asignatura||'').substring(0,14)}</span></div></td>`;
+        return;
+      }
+      // 3. Otra área
+      const otra = claseProgramadaArea(sId, DIAS_PROG[0], hora);
+      if(otra && otra.area !== area){
+        const oColor = AREA_COLORS[otra.area]||'#f59e0b';
+        filas+=`<td class="mc-otra" title="${AREA_LABELS[otra.area]}: ${otra.clase.asignatura||''}"><div class="mc-inner"><span class="mc-tag" style="background:${oColor}30;color:${oColor}">${AREA_LABELS[otra.area]}</span><br><span style="color:rgba(255,255,255,.6);font-size:8px">${(otra.clase.asignatura||'').substring(0,12)}</span></div></td>`;
+        return;
+      }
+      // 4. Propia
+      if(otra && otra.area === area){
+        const [cId, c] = misClases.find(([,cl])=>normAula(cl.salon)===sId&&cl.dia===DIAS_PROG[0]&&solapa(cl.hi,cl.hf,hora,hf))||[null,null];
+        if(c) {
+          filas+=`<td class="mc-propia" onclick="editClaseArea('${cId}')" title="Clic para editar"><div class="mc-inner"><span class="mc-tag" style="background:#065f46;color:#6ee7b7">MÍA ✎</span><br><span style="color:#6ee7b7">${(c.asignatura||'').substring(0,14)}</span></div></td>`;
+          return;
+        }
+      }
+      // 5. Libre
+      filas+=`<td class="mc-libre" onclick="openAddClaseArea('${sId}','LUNES','${hora}')"><div class="mc-libre-lbl">+</div></td>`;
+    });
+    filas += '</tr>';
+  });
+
+  const encabezados = salonesVis.map(s=>`<th>${(s.id||s.nombre).substring(0,8)}</th>`).join('');
+
+  cont.innerHTML = `
+<div style="padding:16px 24px;height:100%;overflow-y:auto">
+  <div class="mprog-header">
+    <h2>📋 Mi Programación — ${aLabel}</h2>
+    <p>Semestre 2027-1 · Agrega y edita tus clases sin afectar las demás áreas</p>
+  </div>
+  
+  <div class="mprog-kpis">
+    <div class="mprog-kpi"><span>${totalMias}</span><small>Clases cargadas</small></div>
+    <div class="mprog-kpi"><span>${diasUsados}</span><small>Días con clase</small></div>
+    <div class="mprog-kpi"><span>${salonesUsados}</span><small>Salones usados</small></div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:10px">
+    <div class="legend-row">
+      <span><span class="leg-c" style="background:#1e3a5f80;border:1px solid #3b82f6"></span> Clase AP (oficial)</span>
+      <span><span class="leg-c" style="background:#14532d60;border:1px solid #22c55e"></span> Clase EP (oficial)</span>
+      <span><span class="leg-c" style="background:${aColor}30;border:1px solid ${aColor}"></span> Otra área</span>
+      <span><span class="leg-c" style="background:#065f4660;border:1px solid #6ee7b7"></span> Mi programación (editable)</span>
+      <span><span class="leg-c" style="background:transparent;border:1px solid #3b82f6"></span> Libre — clic para agregar</span>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-add-clase" onclick="openAddClaseArea(null,null,null)">+ Agregar clase</button>
+      <button class="btn-enviar-gim" onclick="enviarProgAGIM('${area}')">📧 Enviar programación a GIM</button>
+    </div>
+  </div>
+
+  <div class="mprog-grid-wrap">
+    <table class="mprog-table">
+      <thead><tr><th style="width:60px">Hora</th>${encabezados}</tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+  </div>
+
+  ${totalMias>0?`
+  <div style="margin-top:20px">
+    <div style="font-size:12px;font-weight:700;color:var(--b300);margin-bottom:10px">Mis clases cargadas (${totalMias})</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${misClases.map(([id,c])=>`
+      <div style="background:var(--b800);border:1px solid #065f46;border-radius:8px;padding:8px 12px;font-size:11px;min-width:200px">
+        <div style="font-weight:700;color:#6ee7b7">${c.asignatura||'Sin nombre'}</div>
+        <div style="color:var(--b400)">${c.salon} · ${c.dia} · ${c.hi}–${c.hf}</div>
+        ${c.docente?`<div style="color:var(--b400)">${c.docente}</div>`:''}
+        <div style="margin-top:6px;display:flex;gap:6px">
+          <button onclick="editClaseArea('${id}')" style="background:#1d4ed8;color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer">✎ Editar</button>
+          <button onclick="deleteClaseArea('${id}')" style="background:#7f1d1d;color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer">🗑 Eliminar</button>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`:''}
+</div>`;
+}
+
+// ── FORMULARIO AGREGAR/EDITAR ─────────────────────────────────────
+function openAddClaseArea(salon, dia, hora){
+  // Llenar selector de salones
+  const selSalon = document.getElementById('acSalon');
+  selSalon.innerHTML = CAT.map(s=>`<option value="${s.id||s.nombre}" ${salon===s.id?'selected':''}>${s.id||s.nombre} (cap. ${s.cap||'—'})</option>`).join('');
+  // Llenar horas
+  const hiSel=document.getElementById('acHi');
+  const hfSel=document.getElementById('acHf');
+  hiSel.innerHTML=FR.map(h=>`<option value="${h}" ${h===hora?'selected':''}>${h}</option>`).join('');
+  hfSel.innerHTML=FR.map(h=>`<option value="${h}" ${h===sigF(hora||'07:00')?'selected':''}>${h}</option>`).join('');
+  if(dia) document.getElementById('acDia').value=dia;
+  document.getElementById('acAsig').value='';
+  document.getElementById('acDoc').value='';
+  document.getElementById('acGrupo').value='';
+  document.getElementById('acEditId').value='';
+  document.getElementById('ovAddClaseTit').textContent='➕ Agregar clase';
+  document.getElementById('ovAddClaseArea').style.display='flex';
+}
+
+function editClaseArea(id){
+  const c = (PROG_AREAS[UA.area]||{})[id];
+  if(!c) return;
+  openAddClaseArea(normAula(c.salon), c.dia, c.hi);
+  document.getElementById('acSalon').value=c.salon;
+  document.getElementById('acDia').value=c.dia;
+  document.getElementById('acHi').value=c.hi;
+  document.getElementById('acHf').value=c.hf;
+  document.getElementById('acAsig').value=c.asignatura||'';
+  document.getElementById('acDoc').value=c.docente||'';
+  document.getElementById('acGrupo').value=c.grupo||'';
+  document.getElementById('acEditId').value=id;
+  document.getElementById('ovAddClaseTit').textContent='✎ Editar clase';
+}
+
+async function saveClaseArea(){
+  const area = UA.area;
+  const salon = document.getElementById('acSalon').value;
+  const dia   = document.getElementById('acDia').value;
+  const hi    = document.getElementById('acHi').value;
+  const hf    = document.getElementById('acHf').value;
+  const asig  = document.getElementById('acAsig').value.trim();
+  const doc   = document.getElementById('acDoc').value.trim();
+  const grupo = document.getElementById('acGrupo').value.trim();
+  const editId= document.getElementById('acEditId').value;
+
+  if(!asig){ toast('Ingresa el nombre de la clase','err'); return; }
+  if(tm(hi)>=tm(hf)){ toast('La hora fin debe ser mayor que la hora inicio','err'); return; }
+
+  // ── VERIFICAR CONFLICTOS ──────────────────────────────────────
+  const salonNorm = normAula(salon);
+
+  // 1. Contra clases oficiales
+  const confOf = CLS.find(c=>normAula(c.salon)===salonNorm&&c.dia===dia&&solapa(c.hi,c.hf,hi,hf));
+  if(confOf){ toast(`⛔ Conflicto con clase oficial: "${confOf.asignatura}" (${confOf.hi}-${confOf.hf})`,'err'); return; }
+
+  // 2. Contra otras áreas
+  for(const oArea of Object.keys(PROG_AREAS)){
+    if(oArea===area) continue;
+    const confOtra = Object.entries(PROG_AREAS[oArea]||{}).find(([id,c])=>
+      normAula(c.salon)===salonNorm && c.dia===dia && solapa(c.hi,c.hf,hi,hf)
+    );
+    if(confOtra){
+      toast(`⛔ El salón ${salonNorm} ya fue asignado por ${AREA_LABELS[oArea]} en ese horario`,'err');
+      return;
+    }
+  }
+
+  // 3. Contra la propia área (evitar duplicados en mismo slot, excluyendo la que se edita)
+  const confPropia = Object.entries(PROG_AREAS[area]||{}).find(([id,c])=>
+    id!==editId && normAula(c.salon)===salonNorm && c.dia===dia && solapa(c.hi,c.hf,hi,hf)
+  );
+  if(confPropia){ toast('Ya tienes una clase asignada en ese salón y horario','err'); return; }
+
+  // ── GUARDAR EN FIREBASE ───────────────────────────────────────
+  const datos = {salon,dia,hi,hf,asignatura:asig,docente:doc,grupo,area,
+    creadoPor:UA.usuario, fechaCarga:new Date().toISOString()};
+  
+  try {
+    const ref = db.ref('programacion_2027_1/'+area+'/'+(editId||db.ref().push().key));
+    await ref.set(datos);
+    closeOv('ovAddClaseArea');
+    toast('✅ Clase guardada correctamente','ok');
+  } catch(e){ toast('Error al guardar: '+e.message,'err'); }
+}
+
+async function deleteClaseArea(id){
+  if(!confirm('¿Eliminar esta clase de tu programación?')) return;
+  try{
+    await db.ref('programacion_2027_1/'+UA.area+'/'+id).remove();
+    toast('Clase eliminada','ok');
+  }catch(e){ toast('Error: '+e.message,'err'); }
+}
+
+// ── ENVIAR PROGRAMACIÓN A GIM POR EMAILJS ────────────────────────
+async function enviarProgAGIM(area){
+  const misClases = Object.values(PROG_AREAS[area]||{});
+  if(misClases.length===0){ toast('No tienes clases cargadas aún para enviar','err'); return; }
+  
+  const resumen = misClases.map(c=>
+    `${c.dia} ${c.hi}-${c.hf} | ${normAula(c.salon)} | ${c.asignatura}${c.docente?' — '+c.docente:''}${c.grupo?' ('+c.grupo+')':''}`
+  ).join('\n');
+
+  const params = {
+    to_email: CFG.CORREO,
+    from_name: AREA_LABELS[area]||area,
+    subject: 'Programación 2027-1 — '+AREA_LABELS[area],
+    message: `Estimada coordinación GIM,\n\nSe adjunta la programación del área de ${AREA_LABELS[area]} para el semestre 2027-1.\n\nTOTAL: ${misClases.length} clases\n\n${resumen}\n\nCargado por: ${UA.usuario}\nFecha: ${new Date().toLocaleString('es-CO')}`,
+    reply_to: UA.correo||CFG.CORREO
+  };
+
+  try{
+    toast('Enviando programación...','ok');
+    await emailjs.init(CFG.EJS_PUB);
+    await emailjs.send(CFG.EJS_SVC, CFG.EJS_TPL, params);
+    toast('✅ Programación enviada a GIM por correo','ok');
+  }catch(e){
+    toast('Error EmailJS: '+e.message,'err');
+    console.error('EmailJS error:',e);
+  }
+}
+
+/* ═══ MODIFICAR render() PARA INCLUIR MIPROG ═══ */
+// (se parchea abajo el TAB dispatch)
+</script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -1273,6 +1589,12 @@ const BASE_USERS = {
     perms:{crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true,editarProg:true},activo:true},
   'Nicolas2026*':{nombre:'Nicolás Marín',usuario:'Nicolas.Marin',cargo:'Apoyo Agendamientos',rol:'gestor',
     perms:{crear:true,editar:true,aprobar:true,eliminar:true,historial:true,dashboard:true,editarProg:true},activo:true},
+  'ProgPre2027*':{nombre:'Coordinación Pregrado',usuario:'coord.pregrado',cargo:'Coordinación Académica — Pregrado',rol:'coord_area',area:'pregrado',
+    perms:{crear:false,editar:false,aprobar:false,eliminar:false,historial:false,dashboard:false,editarProg:false,cargarProg:true},activo:true},
+  'ProgPosD2027*':{nombre:'Coordinación Posgrado Diurno',usuario:'coord.posgrado.d',cargo:'Coordinación Académica — Posgrado Diurno',rol:'coord_area',area:'posgrado_d',
+    perms:{crear:false,editar:false,aprobar:false,eliminar:false,historial:false,dashboard:false,editarProg:false,cargarProg:true},activo:true},
+  'ProgPosN2027*':{nombre:'Coordinación Posgrado Nocturno',usuario:'coord.posgrado.n',cargo:'Coordinación Académica — Posgrado Nocturno',rol:'coord_area',area:'posgrado_n',
+    perms:{crear:false,editar:false,aprobar:false,eliminar:false,historial:false,dashboard:false,editarProg:false,cargarProg:true},activo:true},
 };
 
 /* ═══ SALONES BLOQUEADOS POR DEFECTO (106,107 por biblioteca) ═══ */
@@ -1285,104 +1607,104 @@ const DIAS_MAP={LUNES:1,MARTES:2,MIERCOLES:3,JUEVES:4,VIERNES:5,SABADO:6,DOMINGO
 /* ═══ CATÁLOGO SALONES ═══ */
 const CAT=[
   // ── PISO 1 ──
-  {id:'101',n:'Sala de Cómputo 101',tipo:'sala_computo',cap:35,p:1,
-   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:16},
-   desc:'16 computadores, 35 sillas, pantalla 86", video beam IQ, tablero digital, barra de sonido'},
-  {id:'102',n:'Salón 102',tipo:'aula',cap:38,p:1,
-   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'38 sillas, pantalla 86", video beam, tablero digital, 3 tableros acrílicos, barra de sonido'},
-  {id:'103',n:'Salón 103',tipo:'aula',cap:30,p:1,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'30 sillas, video beam, tablero digital, 4 tableros acrílicos, barra de sonido'},
-  {id:'104',n:'Salón 104',tipo:'aula',cap:37,p:1,
-   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'37 sillas, pantalla 86", video beam, tablero digital, 3 tableros acrílicos, barra de sonido'},
-  {id:'105',n:'Salón 105',tipo:'aula',cap:30,p:1,
-   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre IX'},
-   desc:'30 sillas, pantalla 86", video beam, tablero digital, 4 tableros acrílicos, barra de sonido'},
+  {id:'101',n:'Sala de Cómputo 101',tipo:'sala_computo',cap:40,p:1,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:15},
+   desc:'40 sillas, 15 computadores, 1 video beam, 1 pantalla. Tomas: 11 naranjas, 2 blancas'},
+  {id:'102',n:'Salón 102',tipo:'aula',cap:35,p:1,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'35 sillas, 1 video beam, 1 pantalla'},
+  {id:'103',n:'Salón 103',tipo:'aula',cap:43,p:1,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'43 sillas, 1 video beam, 1 pantalla'},
+  {id:'104',n:'Salón 104',tipo:'aula',cap:43,p:1,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'43 sillas, 1 escritorio, 1 video beam, 1 pantalla'},
+  {id:'105',n:'Salón 105',tipo:'aula',cap:40,p:1,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre IX'},
+   desc:'40 sillas, 2 escritorios, 1 video beam, 1 pantalla'},
   {id:'106',n:'Salón 106',tipo:'aula',cap:32,p:1,
-   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'32 sillas — BLOQUEADO: uso biblioteca/estudiantes'},
-  {id:'107',n:'Salón 107',tipo:'aula',cap:31,p:1,
-   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'31 sillas — BLOQUEADO: uso biblioteca/estudiantes'},
-  {id:'108',n:'Salón 108',tipo:'aula',cap:38,p:1,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre X'},
-   desc:'38 sillas, video beam, tablero digital, 6 tableros acrílicos, barra de sonido'},
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'32 sillas, 17 mesas, 1 video beam, 1 pantalla. Tomas: 6 blancas — BLOQUEADO: uso biblioteca'},
+  {id:'107',n:'Salón 107',tipo:'sala_computo',cap:20,p:1,
+   e:{vb:1,pan:1,td:0,ta:0,son:0,ac:0,pc:6},
+   desc:'20 sillas, 1 mesa, 6 computadores, 1 video beam, 1 pantalla. Tomas: 5 blancas, 1 naranja — BLOQUEADO: uso biblioteca'},
+  {id:'108',n:'Salón 108',tipo:'aula',cap:40,p:1,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre X'},
+   desc:'40 sillas, 1 mesa, 1 video beam, 1 pantalla'},
   // ── PISO 2 ──
-  {id:'201',n:'Salón 201',tipo:'aula',cap:35,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre I'},
-   desc:'35 sillas, video beam, tablero digital, 3 tableros acrílicos'},
-  {id:'202',n:'Salón 202',tipo:'aula',cap:32,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre II'},
-   desc:'32 sillas, video beam, tablero digital, 5 tableros acrílicos, barra de sonido'},
-  {id:'203',n:'Salón 203',tipo:'aula',cap:34,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre III - Grupo B'},
-   desc:'34 sillas, video beam, tablero digital, 4 tableros acrílicos, barra de sonido'},
+  {id:'201',n:'Salón 201',tipo:'aula',cap:41,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre I'},
+   desc:'41 sillas, 1 mesa, 1 video beam, 1 pantalla'},
+  {id:'202',n:'Salón 202',tipo:'aula',cap:43,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre II'},
+   desc:'43 sillas, 1 mesa, 1 video beam, 1 pantalla. Tomas: 5 blancas, 1 naranja'},
+  {id:'203',n:'Salón 203',tipo:'aula',cap:39,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre III - Grupo B'},
+   desc:'39 sillas, 1 video beam, 1 pantalla, 1 parlante. 8 tomas eléctricas'},
   {id:'204',n:'Salón 204',tipo:'aula',cap:38,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre IV'},
-   desc:'38 sillas, video beam, tablero digital, 4 tableros acrílicos, barra de sonido'},
+   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre IV'},
+   desc:'38 sillas, 1 video beam, 1 pantalla, 1 parlante. 7 tomas'},
   {id:'205',n:'Salón 205',tipo:'aula',cap:38,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre V'},
-   desc:'38 sillas, 18 mesas, video beam, tablero digital, 4 tableros acrílicos'},
-  {id:'206',n:'Salón 206',tipo:'aula',cap:39,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre VI'},
-   desc:'39 sillas, video beam, tablero digital, 4 tableros acrílicos, barra de sonido'},
-  {id:'207',n:'Salón 207',tipo:'aula',cap:26,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre VII'},
-   desc:'26 sillas, video beam, tablero digital, 1 tablero acrílico'},
-  {id:'208',n:'Salón 208',tipo:'aula',cap:39,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre VIII'},
-   desc:'39 sillas, video beam, tablero digital, 5 tableros acrílicos, barra de sonido'},
-  {id:'215',n:'Salón 215',tipo:'sala_juntas',cap:15,p:2,
-   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:1,pc:0},
-   desc:'15 sillas, pantalla RICOH, video beam, tablero digital, tablero acrílico, aire acondicionado'},
-  {id:'Alfonso López',n:'Salón Alfonso López',tipo:'sala_especial',cap:24,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:1},
-   desc:'24 sillas, 13 mesas, video beam, tablero digital, tablero acrílico, barra de sonido'},
-  {id:'Carlos Lleras',n:'Salón Carlos Lleras',tipo:'sala_especial',cap:26,p:2,
-   e:{vb:1,pan:0,td:0,ta:1,son:0,ac:0,pc:0},
-   desc:'26 sillas, 12 mesas, video beam, 2 tableros acrílicos'},
-  {id:'Alberto Lleras',n:'Salón Alberto Lleras',tipo:'sala_especial',cap:39,p:2,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'39 sillas, 19 mesas, video beam, tablero digital, tablero acrílico, barra de sonido, aula híbrida'},
-  {id:'Betancourt',n:'Aula Magna Betancourt',tipo:'aula_magna',cap:60,p:2,
-   e:{vb:0,pan:0,td:0,ta:1,son:1,ac:0,pc:0},
-   desc:'38 sillas con ruedas, módulos de trabajo, aula híbrida con barra de sonido'},
-  {id:'Tito Huertas',n:'Aula Magna Tito Huertas',tipo:'aula_magna',cap:50,p:2,
-   e:{vb:0,pan:0,td:0,ta:1,son:1,ac:0,pc:0},
-   desc:'21 sillas con ruedas, 13 sillas con brazo, módulos, aula híbrida con barra de sonido'},
-  {id:'Guillermo Nannetti',n:'Salón Guillermo Nannetti',tipo:'sala_especial',cap:27,p:2,
-   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'27 sillas, 13 mesas, video beam, pantalla 86", tablero digital, tablero acrílico, barra de sonido'},
-  {id:'Coworking',n:'Coworking',tipo:'sala_especial',cap:20,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre V'},
+   desc:'38 sillas, 1 mesa, 1 video beam, 1 pantalla'},
+  {id:'206',n:'Salón 206',tipo:'aula',cap:33,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0,apt:'Semestre VI'},
+   desc:'33 sillas, 1 video beam, 1 pantalla, 1 barra de sonido. 9 tomas eléctricas'},
+  {id:'207',n:'Salón 207',tipo:'aula',cap:37,p:2,
+   e:{vb:0,pan:1,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre VII'},
+   desc:'37 sillas, 1 mesa, 1 pantalla. Tomas: 3 blancas, 2 naranjas'},
+  {id:'208',n:'Salón 208',tipo:'aula',cap:40,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0,apt:'Semestre VIII'},
+   desc:'40 sillas, 1 mesa, 1 video beam, 1 pantalla'},
+  {id:'215',n:'Salón 215',tipo:'sala_juntas',cap:25,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:1,pc:0},
+   desc:'25 sillas, 2 pantallas, 1 video beam, 1 parlante Bluetooth, 3 parlantes techo, 1 aire acondicionado. 7 tomas'},
+  {id:'Alfonso López',n:'Salón Alfonso López',tipo:'sala_especial',cap:25,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'25 sillas, 13 mesas, 1 video beam, 1 pantalla'},
+  {id:'Carlos Lleras',n:'Salón Carlos Lleras',tipo:'sala_especial',cap:20,p:2,
+   e:{vb:0,pan:1,td:0,ta:1,son:0,ac:0,pc:0},
+   desc:'20 sillas, 11 mesas, 1 pantalla'},
+  {id:'Alberto Lleras',n:'Salón Alberto Lleras',tipo:'sala_especial',cap:42,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'42 sillas, 20 mesas, 1 video beam, 1 pantalla'},
+  {id:'Betancourt',n:'Aula Mauricio Betancourt',tipo:'aula_magna',cap:32,p:2,
+   e:{vb:0,pan:1,td:0,ta:1,son:0,ac:0,pc:0},
+   desc:'32 sillas, 1 pantalla. 70 tomas eléctricas'},
+  {id:'Tito Huertas',n:'Aula Tito Huertas',tipo:'aula_magna',cap:26,p:2,
+   e:{vb:0,pan:1,td:0,ta:1,son:0,ac:0,pc:0},
+   desc:'26 sillas, 1 pantalla. 64 tomas eléctricas'},
+  {id:'Guillermo Nannetti',n:'Salón Guillermo Nannetti',tipo:'sala_especial',cap:26,p:2,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'26 sillas, 15 mesas, 1 video beam, 1 pantalla'},
+  {id:'Sala de Juntas Coworking',n:'Sala de Juntas Coworking',tipo:'sala_especial',cap:20,p:2,
    e:{vb:0,pan:1,td:0,ta:0,son:0,ac:1,pc:1},
-   desc:'Espacio colaborativo, computadores, aire acondicionado'},
-  // ── PISO 3 — Salas de Cómputo (mismos espacios que 301-304) ──
-  {id:'301',n:'Sala de Cómputo 301',tipo:'sala_computo',cap:28,p:3,
-   e:{vb:1,pan:0,td:1,ta:0,son:1,ac:1,pc:21,apt:'Semestre III - Grupo A'},
-   desc:'21 computadores, 28 sillas, video beam, tablero TQ Board, parlante, aire acondicionado'},
-  {id:'302',n:'Sala de Cómputo 302',tipo:'sala_computo',cap:19,p:3,
-   e:{vb:0,pan:0,td:0,ta:1,son:0,ac:1,pc:22},
-   desc:'22 computadores, 19 sillas, tablero acrílico, aire acondicionado'},
+   desc:'Sala de juntas y coworking, computadores, aire acondicionado'},
+  // ── PISO 3 ──
+  {id:'301',n:'Sala de Cómputo 301',tipo:'sala_computo',cap:26,p:3,
+   e:{vb:1,pan:1,td:1,ta:0,son:0,ac:1,pc:21,apt:'Semestre III - Grupo A'},
+   desc:'26 sillas, 13 mesas, 21 computadores, 1 video beam, 1 pantalla, aire acondicionado'},
+  {id:'302',n:'Sala de Cómputo 302',tipo:'sala_computo',cap:14,p:3,
+   e:{vb:0,pan:1,td:0,ta:1,son:0,ac:1,pc:0},
+   desc:'14 sillas, 11 mesas, 1 pantalla, aire acondicionado'},
   {id:'303',n:'Sala de Cómputo 303',tipo:'sala_computo',cap:20,p:3,
-   e:{vb:0,pan:0,td:0,ta:1,son:0,ac:1,pc:21},
-   desc:'21 computadores, 20 sillas, 2 tableros acrílicos, aire acondicionado'},
-  {id:'304',n:'Sala de Cómputo 304',tipo:'sala_computo',cap:26,p:3,
-   e:{vb:0,pan:0,td:0,ta:1,son:0,ac:0,pc:24},
-   desc:'24 computadores, 26 sillas, 4 tableros acrílicos'},
-  {id:'305',n:'Salón 305',tipo:'aula',cap:37,p:3,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'37 sillas, video beam, tablero TQ Board, 3 tableros acrílicos, parlante'},
-  {id:'306',n:'Salón 306',tipo:'aula',cap:34,p:3,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'34 sillas, 3 mesas, video beam, tablero TQ Board, 4 tableros acrílicos, parlante'},
-  {id:'307',n:'Salón 307',tipo:'aula',cap:46,p:3,
-   e:{vb:1,pan:1,td:1,ta:1,son:1,ac:0,pc:0},
-   desc:'46 sillas, 2 mesas, pantalla 86", video beam, tablero TQ Board, tablero acrílico, parlante'},
+   e:{vb:0,pan:1,td:0,ta:1,son:0,ac:1,pc:21},
+   desc:'20 sillas, 10 mesas, 21 computadores, 1 pantalla. Tomas: 20 naranjas, aire acondicionado'},
+  {id:'304',n:'Sala de Cómputo 304',tipo:'sala_computo',cap:23,p:3,
+   e:{vb:0,pan:1,td:0,ta:1,son:0,ac:0,pc:22},
+   desc:'23 sillas, 23 mesas, 22 computadores, 1 pantalla'},
+  {id:'305',n:'Salón 305',tipo:'aula',cap:33,p:3,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'33 sillas, 1 mesa, 1 video beam, 1 pantalla. Tomas: 4 blancas, 1 naranja'},
+  {id:'306',n:'Salón 306',tipo:'aula',cap:42,p:3,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'42 sillas, 2 mesas, 1 video beam, 1 pantalla. Tomas: 4 blancas, 1 naranja'},
+  {id:'307',n:'Salón 307',tipo:'aula',cap:40,p:3,
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'40 sillas, 2 mesas, 1 video beam, 1 pantalla'},
   {id:'308',n:'Salón 308',tipo:'aula',cap:35,p:3,
-   e:{vb:1,pan:0,td:1,ta:1,son:1,ac:1,pc:0},
-   desc:'35 sillas, 2 video beams, tablero TQ Board, tablero acrílico, aire acondicionado, parlante'},
+   e:{vb:1,pan:1,td:1,ta:1,son:0,ac:0,pc:0},
+   desc:'35 sillas, 2 mesas, 1 video beam, 1 pantalla'},
 ];
 
 /* ═══ NORMALIZAR NOMBRE SALÓN ═══ */
@@ -1396,7 +1718,7 @@ function normAula(s){
   if(u.includes('ALBERTO LLERAS')||u.includes('ALBERTO L')||u==='ALBERTO')return'Alberto Lleras';
   if(u.includes('BETANCOURT')||u.includes('MAURICIO'))return'Betancourt';
   if(u.includes('TITO HUERTAS')||u.includes('TITO H')||u==='TITO')return'Tito Huertas';
-  if(u.includes('COWORK'))return'Coworking';
+  if(u.includes('COWORK'))return'Sala de Juntas Coworking';
   if(u.includes('301-302')||u.includes('301 302'))return'301';
   // Salas computo: normalizar
   if(u.includes('SALA') && u.includes('COMPUTO') || u.includes('SALA') && u.includes('CÓMPUTO')){
@@ -1520,7 +1842,7 @@ let DEPENDENCIAS = [
 ];
 
 // Version del semestre - cambiar cada semestre para limpiar cache
-const SCHED_VERSION = '2026-2-v7';
+const SCHED_VERSION = '2026-2-v8';
 if(localStorage.getItem('salones_sched_v')!==SCHED_VERSION){
   // Al cambiar version: solo limpiar el formato legado de ediciones
   // Las ediciones v2 (por clave estable) y las eliminaciones sobreviven
@@ -1534,6 +1856,13 @@ let CLS = CLASES_2026_2.map(c=>({...c,
   fi: c.fi||'2026-08-10',
   ff: c.ff||'2026-12-10'
 }));
+// Clases cargadas por las áreas — se cargan de Firebase
+let CLASES_AREAS = [];  // [{...clase, area:'pregrado'|'posgrado_d'|'posgrado_n', fbId:'xxx'}]
+const AREA_COLORS = {
+  pregrado:   {bg:'C7D2FE', border:'818CF8', label:'Prog. Pregrado'},
+  posgrado_d: {bg:'FDE68A', border:'F59E0B', label:'Prog. Pos. Diurno'},
+  posgrado_n: {bg:'DDD6FE', border:'A78BFA', label:'Prog. Pos. Nocturno'},
+};
 // Aplicar eliminaciones por clave estable
 (function(){
   try{
@@ -1585,26 +1914,44 @@ function saveLocal(){try{localStorage.setItem('esap_rsv3',JSON.stringify(rsvArr(
 
 /* ═══ LOGIN ═══ */
 function doLogin(){
-  const pass=document.getElementById('loginPass').value.trim();
-  const user=document.getElementById('loginUser').value.trim();
-  // Check base users
-  let found=null;
-  // Cargar edits de clases desde localStorage (solo una vez, primera sesión)
-  if(!window._clsLoaded){loadClsEditsLocal();window._clsLoaded=true;}
-  if(BASE_USERS[pass])found={...BASE_USERS[pass]};
-  // Check dynamic users from Firebase
-  else if(USERS[pass])found={...USERS[pass]};
-  if(found&&found.activo!==false){
-    UA=found;
-    UA._pass=pass; // guardar contraseña activa para cambio posterior
-    document.getElementById('loginScreen').style.display='none';
-    document.getElementById('app').classList.add('visible');
-    applyUserUI();
-    initFirebase();
-  }else{
-    document.getElementById('loginErr').classList.add('on');
-    document.getElementById('loginPass').value='';
-    document.getElementById('loginPass').focus();
+  try{
+    const pass=document.getElementById('loginPass').value.trim();
+    const user=document.getElementById('loginUser').value.trim().toLowerCase();
+    let found=null;
+    // 1. Buscar por contraseña (metodo principal)
+    if(BASE_USERS[pass]) found={...BASE_USERS[pass]};
+    else if(USERS[pass]) found={...USERS[pass]};
+    // 2. Buscar por usuario+contraseña combinados (fallback robusto)
+    if(!found){
+      const entry=Object.entries(BASE_USERS).find(function(e){
+        return e[1].usuario&&e[1].usuario.toLowerCase()===user&&e[0]===pass;
+      });
+      if(entry) found={...entry[1]};
+    }
+    if(!found){
+      const entry2=Object.entries(USERS||{}).find(function(e){
+        return e[1].usuario&&e[1].usuario.toLowerCase()===user&&e[0]===pass;
+      });
+      if(entry2) found={...entry2[1]};
+    }
+    if(found&&found.activo!==false){
+      if(!window._clsLoaded){try{loadClsEditsLocal();}catch(e){}window._clsLoaded=true;}
+      UA=found;
+      UA._pass=pass;
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('app').classList.add('visible');
+      try{applyUserUI();}catch(e){console.warn('applyUserUI error:',e);}
+      try{initFirebase();}catch(e){console.warn('initFirebase error:',e);}
+    }else{
+      const err=document.getElementById('loginErr');
+      if(err){err.classList.add('on');err.textContent='Usuario o contraseña incorrectos';}
+      document.getElementById('loginPass').value='';
+      document.getElementById('loginPass').focus();
+    }
+  }catch(e){
+    console.error('doLogin error:',e);
+    const err=document.getElementById('loginErr');
+    if(err){err.classList.add('on');err.textContent='Error: '+e.message;}
   }
 }
 
@@ -1639,6 +1986,8 @@ function applyUserUI(){
   // Admin nav
   const navAdmin=document.getElementById('navAdmin');
   const navAdminSec=document.getElementById('navAdminSection');
+  initProgAreas();
+  if(UA.rol==='coord_area'){document.getElementById('navProgSection').style.display='';document.getElementById('navMiProg').style.display='';setTimeout(function(){goToTab('miprog');},200);}
   if(UA.rol==='admin'){navAdmin.style.display='flex';navAdminSec.style.display='block';}
   // Si es consultor va directo al dashboard
   if(UA.rol==='consultor')setTimeout(()=>goToTab('indicadores'),300);
@@ -1726,7 +2075,7 @@ function claseEn(aula,diaStr,franja){
       return c.dia===diaStr;
     } else {
       if(!c.fecha)return c.dia===diaStr;
-      return c.fecha===FECHA;
+      return c.fecha===FECHA&&c.dia===diaStr;
     }
   });
   return found||null;
@@ -1824,7 +2173,7 @@ function renderGrilla(){
     frs.forEach((fr,fi)=>{
       if(skip>0){skip--;cells.push(null);return;}
       const est=estCel(aulaId,FECHA,fr);
-      if(filtProg&&(est==='cls-ap'||est==='cls-ep')){const c=claseEn(aulaId,diaStr,fr);if(c&&c.programa!==filtProg){cells.push('<td class="cel c-free" onclick="rsvDest(this)" data-a="'+aulaId+'_'+fr+'"><div class="cel-in"><div class="cel-ico" style="opacity:.3">✚</div><div class="cel-txt" style="color:var(--b400)">LIBRE</div></div></td>');return;}}
+      if(filtProg&&(est==='cls-ap'||est==='cls-ep')){const c=claseEn(aulaId,diaStr,fr);if(c&&c.programa!==filtProg){const _freeOnclick=SES&&SES.rol==='coord_area'?'onclick="clickCeldaArea(\''+aulaId+'\',\''+fr+'\')"':'onclick="rsvDest(this)" data-a="'+aulaId+'_'+fr+'"';cells.push('<td class="cel c-free" '+_freeOnclick+'><div class="cel-in"><div class="cel-ico" style="opacity:.3">✚</div><div class="cel-txt" style="color:var(--b400)">LIBRE</div></div></td>');return;}}
       const cc=CEL_CLASS[est]||'c-free';
       const ico=CEL_ICO[est]||'✚';
       const r=(['rsv','pend','mant'].includes(est))?rsvEnFecha(aulaId,FECHA,fr):null;
@@ -1854,7 +2203,9 @@ function renderGrilla(){
 function renderSemana(){
   const aus=CAT.map(c=>c.id);
   const lunD=lunes(strD(FECHA));
-  const dias=Array.from({length:6},(_,i)=>fmtD(new Date(lunD.getTime()+i*86400000)));
+  // Domingo de la semana = lunes - 1 dia
+  const domD=new Date(lunD.getTime()-86400000);
+  const dias=Array.from({length:7},(_,i)=>fmtD(new Date(domD.getTime()+i*86400000)));
   const hoy=fmtD(new Date());
   const ths=dias.map(f=>'<th '+(f===hoy?'style="background:var(--b600)"':'')+'><div>'+nomDia(f)+'</div><div style="font-size:9px;opacity:.6">'+fC(f)+'</div></th>').join('');
   const rows=aus.map(aulaId=>{
@@ -1863,7 +2214,7 @@ function renderSemana(){
     const cells=dias.map(fecha=>{
       if(isB)return'<td style="background:var(--n100);text-align:center;padding:6px;font-size:10px;color:var(--muted)">🔒</td>';
       const diaStr=diaEsP(fecha);
-      const clsD=diaStr?CLS.filter(c=>normAula(c.salon)===aulaId&&c.dia===diaStr):[];
+      const clsD=diaStr?CLS.filter(c=>{if(normAula(c.salon)!==aulaId)return false;if(c.dia!==diaStr)return false;var fi=c.fi||'2026-08-10',ff=c.ff||'2026-12-10';if(fecha<fi||fecha>ff)return false;if(c.tipo!=='pregrado'&&c.fecha&&c.fecha!==fecha)return false;return true;}):[];
       const rsvD=rsvArr().filter(r=>r.aula===aulaId&&(r.fecha===fecha||(r.fechas&&r.fechas.includes(fecha))));
       const evD=EVENTOS_ESPECIALES.filter(e=>normAula(e.salon)===aulaId&&e.fecha===fecha);
       if(!clsD.length&&!rsvD.length&&!evD.length)return'<td style="background:var(--b50);cursor:pointer;padding:4px;vertical-align:top;min-height:50px" onclick="rsvDest(this)" data-a="'+aulaId+'_08:00"><div style="text-align:center;padding:10px;color:var(--b300);font-size:16px;opacity:.5">+</div></td>';
@@ -2739,9 +3090,16 @@ function exportarExcel(){
   toast('\u2713 Excel exportado','ok');
 }
 
-function exportarPDF(){const rs=rsvArr();const html='<html><head><meta charset="UTF-8"><title>Reservas ESAP</title><style>body{font-family:Arial,sans-serif;font-size:11px;padding:20px}h1{color:#1a3a5c;font-size:16px}p{color:#64748b;margin:5px 0 15px}table{width:100%;border-collapse:collapse}th{background:#1a3a5c;color:#fff;padding:7px 9px;text-align:left;font-size:10px}td{padding:6px 9px;border-bottom:1px solid #e2e8f0}tr:nth-child(even)td{background:#f8fafc}</style></head><body><h1>🏫 Sistema de Gestión de Aulas — ESAP</h1><p>'+new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+' · '+rs.length+' reservas</p><table><thead><tr><th>Fecha</th><th>Espacio</th><th>Evento</th><th>Solicitante</th><th>Horario</th><th>Estado</th><th>Agendado por</th></tr></thead><tbody>'+rs.map(r=>{const s=CAT.find(x=>x.id===r.aula);return'<tr><td>'+fC(r.fecha||(r.fechas&&r.fechas[0])||'')+'</td><td>'+(s?s.n:r.aula)+'</td><td>'+r.evento+'</td><td>'+nombreR(r)+'</td><td>'+r.hi+'–'+r.hf+'</td><td>'+r.estado+'</td><td>'+(r.creadoPor||'—')+'</td></tr>';}).join('')+'</tbody></table></body></html>';const w=window.open('','_blank');w.document.write(html);w.document.close();setTimeout(()=>w.print(),500);}
+function exportarPDF(){
+  const rs=rsvArr();
+  const estilos='body{font-family:Arial,sans-serif;font-size:11px;padding:20px}h1{color:#1a3a5c;font-size:16px}p{color:#64748b;margin:5px 0 15px}table{width:100%;border-collapse:collapse}th{background:#1a3a5c;color:#fff;padding:7px 9px;text-align:left;font-size:10px}td{padding:6px 9px;border-bottom:1px solid #e2e8f0}tr:nth-child(even)td{background:#f8fafc}.est{padding:3px 7px;border-radius:10px;font-size:9px;font-weight:700}.conf{background:#dcfce7;color:#166534}.pend{background:#fef9c3;color:#854d0e}.canc{background:#fee2e2;color:#991b1b}';
+  const filas=rs.map(r=>'<tr><td>'+r.aula+'</td><td>'+r.fecha+'</td><td>'+r.hi+'-'+r.hf+'</td><td>'+r.tipo+'</td><td>'+(r.solicitante||'')+'</td><td>'+(r.dependencia||'')+'</td><td>'+(r.evento||'')+'</td><td><span class="est '+(r.estado==='confirmada'?'conf':r.estado==='pendiente'?'pend':'canc')+'">'+r.estado+'</span></td><td>'+(r.creadoPor||String.fromCharCode(8212))+'</td></tr>').join('');
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reservas ESAP</title><style>'+estilos+'</style></head><body><h1>Sistema de Gestion de Aulas ESAP</h1><p>'+new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+' - '+rs.length+' reservas</p><table><thead><tr><th>Salon</th><th>Fecha</th><th>Horario</th><th>Tipo</th><th>Solicitante</th><th>Dependencia</th><th>Evento</th><th>Estado</th><th>Agendado por</th></tr></thead><tbody>'+filas+'</tbody></table></body></html>';
+  const w=window.open('','_blank');
+  if(!w){toast('Permite ventanas emergentes para exportar','err');return;}
+  w.document.write(html);w.document.close();setTimeout(()=>w.print(),500);
+}
 
-/* ═══ MODO OSCURO ═══ */
 function toggleDark(){document.documentElement.toggleAttribute('data-dark');const on=document.documentElement.hasAttribute('data-dark');document.querySelectorAll('[onclick="toggleDark()"]').forEach(b=>{b.innerHTML=on?'<i class="bi bi-sun-fill"></i>':'<i class="bi bi-moon-fill"></i>';});}
 
 function poblarDepSelect(){
@@ -2773,9 +3131,11 @@ function rejectEl(el){changeStatus(el.dataset.id,'rechazada');}
 function render(){
   renderKPI();
   if(TAB==='grilla'){if(VISTA==='grilla')renderGrilla();else if(VISTA==='semana')renderSemana();else renderLista();}
+  else if(TAB==='miprog')renderMiProg();
   else if(TAB==='historial')renderHistorial();
   else if(TAB==='inventario')renderInventario();
   else if(TAB==='indicadores')renderIndicadores();
+  else if(TAB==='miprog')renderMiProg();
   else if(TAB==='admin'&&UA&&UA.rol==='admin')renderAdmin();else if(TAB==='admin'){goToTab('grilla');toast('⛔ Solo el administrador puede acceder a este panel','err');}
 }
 function goToTab(tab){const nav=document.querySelector('[data-tab="'+tab+'"]');if(nav)nav.click();}
@@ -2816,6 +3176,219 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Poblar select salones
   document.getElementById('fSalon').innerHTML='<option value="">— Seleccione un espacio —</option>'+CAT.map(s=>'<option value="'+s.id+'">'+s.n+'</option>').join('');
 });
+
+/* ═══════════════════════════════════════════════════════════════════
+   MÓDULO COLABORATIVO — CARGA DE PROGRAMACIÓN POR ÁREAS
+   Permite a coord.pregrado, coord.posgrado.d y coord.posgrado.n
+   cargar su programación semestral directamente en el sistema.
+═══════════════════════════════════════════════════════════════════ */
+
+// Inicializar listener de Firebase para clases de áreas
+function initClasesAreas(){
+  if(!window._db) return;
+  window._db.ref('clases_areas').on('value', function(snap){
+    CLASES_AREAS = [];
+    const data = snap.val() || {};
+    Object.keys(data).forEach(function(area){
+      Object.keys(data[area]).forEach(function(fbId){
+        const c = data[area][fbId];
+        CLASES_AREAS.push({...c, area, fbId, salon: normAula(c.salon||'')});
+      });
+    });
+    if(SES) render();
+  });
+}
+
+// Obtener clase de área en un salón/día/franja
+function claseAreaEn(aulaId, diaStr, franja){
+  const s = sigF(franja);
+  return CLASES_AREAS.find(function(c){
+    if(normAula(c.salon) !== aulaId) return false;
+    if(!solapa(c.hi, c.hf, franja, s)) return false;
+    const fi = c.fi || '2027-01-01';
+    const ff = c.ff || '2027-12-31';
+    if(FECHA < fi || FECHA > ff) return false;
+    // Pregrado y nocturno: recurrente por día
+    if(c.tipo === 'area_pre' || c.tipo === 'area_posn') return c.dia === diaStr;
+    // Posgrado diurno: por fecha exacta
+    if(c.tipo === 'area_posd') return c.fecha === FECHA;
+    return c.dia === diaStr;
+  }) || null;
+}
+
+// Click en celda libre para coord_area — abre formulario de carga
+function clickCeldaArea(aulaId, franja){
+  if(!SES || SES.rol !== 'coord_area') return;
+  const diaStr = diaEsP(FECHA);
+  if(!diaStr){ toast('No se puede asignar en fin de semana o festivo','wa'); return; }
+  // Verificar que no haya nada en ese espacio
+  const est = estCelConAreas(aulaId, FECHA, franja);
+  if(est !== 'free'){
+    let msg = 'Este espacio ya está ocupado.';
+    if(est === 'cls-ap') msg = 'Este espacio tiene una clase oficial de Pregrado — no se puede modificar.';
+    else if(est === 'cls-ep') msg = 'Este espacio tiene una clase oficial de Posgrado — no se puede modificar.';
+    else if(est === 'area-other') {
+      const ca = claseAreaEn(aulaId, diaStr, franja);
+      const aLabel = ca ? (AREA_COLORS[ca.area]||{label:ca.area}).label : 'otra área';
+      msg = 'Este espacio ya fue asignado por ' + aLabel + '. No se puede sobreescribir.';
+    }
+    toast(msg, 'wa'); return;
+  }
+  // Abrir formulario
+  const salon = CAT.find(function(x){ return x.id === aulaId; });
+  document.getElementById('caArea').value = SES.area;
+  document.getElementById('caSalon').value = aulaId;
+  document.getElementById('caSalonLabel').textContent = salon ? salon.nombre : aulaId;
+  document.getElementById('caFranjaLabel').textContent = diaStr + ' · ' + franja + ' – ' + sigF(franja);
+  document.getElementById('caHi').value = franja;
+  document.getElementById('caHf').value = sigF(franja);
+  document.getElementById('caAsig').value = '';
+  document.getElementById('caDocente').value = '';
+  document.getElementById('caGrupo').value = '';
+  document.getElementById('caFi').value = '2027-01-27';
+  document.getElementById('caFf').value = '2027-06-14';
+  document.getElementById('caTipo').value = SES.area === 'posgrado_d' ? 'area_posd' : SES.area === 'posgrado_n' ? 'area_posn' : 'area_pre';
+  document.getElementById('caFechaWrap').style.display = SES.area === 'posgrado_d' ? 'block' : 'none';
+  document.getElementById('caFecha').value = FECHA;
+  openModal('ovCargarClase');
+}
+
+// Guardar clase de área en Firebase
+async function saveClaseArea(){
+  const asig = document.getElementById('caAsig').value.trim();
+  if(!asig){ toast('La asignatura es obligatoria','wa'); return; }
+  const aulaId = document.getElementById('caSalon').value;
+  const hi = document.getElementById('caHi').value;
+  const hf = document.getElementById('caHf').value;
+  const diaStr = diaEsP(FECHA);
+  const tipo = document.getElementById('caTipo').value;
+  const nueva = {
+    asignatura: asig,
+    docente: document.getElementById('caDocente').value.trim(),
+    grupo: document.getElementById('caGrupo').value.trim(),
+    dia: diaStr,
+    hi, hf,
+    salon: aulaId,
+    tipo,
+    fi: document.getElementById('caFi').value,
+    ff: document.getElementById('caFf').value,
+    fecha: tipo === 'area_posd' ? document.getElementById('caFecha').value : '',
+    area: SES.area,
+    creadoPor: SES.usuario,
+    creadoEn: new Date().toISOString(),
+    programa: SES.area === 'pregrado' ? 'PRE-AREA' : 'POS-AREA',
+  };
+  // Verificar conflicto una vez más antes de guardar
+  const est = estCelConAreas(aulaId, FECHA, hi);
+  if(est !== 'free'){
+    toast('⚠️ Conflicto detectado — el espacio ya no está disponible','wa');
+    closeModal('ovCargarClase'); return;
+  }
+  try {
+    await window._db.ref('clases_areas/' + SES.area).push(nueva);
+    closeModal('ovCargarClase');
+    toast('✅ Clase registrada correctamente', 'ok');
+  } catch(e) {
+    toast('Error al guardar: ' + e.message, 'err');
+  }
+}
+
+// Eliminar clase de área (solo la propia)
+async function deleteClaseArea(area, fbId){
+  if(area !== SES.area){ toast('Solo puedes eliminar clases de tu propia área','wa'); return; }
+  if(!confirm('¿Eliminar esta clase de tu programación?')) return;
+  try {
+    await window._db.ref('clases_areas/' + area + '/' + fbId).remove();
+    toast('Clase eliminada', 'ok');
+  } catch(e) {
+    toast('Error al eliminar: ' + e.message, 'err');
+  }
+}
+
+// estCel ampliado para incluir clases de áreas
+function estCelConAreas(aulaId, fecha, franja){
+  const base = estCel(aulaId, fecha, franja);
+  if(base !== 'free') return base;
+  const diaStr = diaEsP(fecha);
+  const ca = claseAreaEn(aulaId, diaStr, franja);
+  if(!ca) return 'free';
+  if(SES && ca.area === SES.area) return 'area-own';
+  return 'area-other';
+}
+
+// Llamar initClasesAreas cuando Firebase esté listo
+const _origInitFB = initFirebase;
+function initFirebase(){
+  _origInitFB();
+  setTimeout(initClasesAreas, 1200);
+}
+
+<!-- ═══ OVERLAY CARGA PROGRAMACIÓN ÁREA ═══ -->
+
+
+function enviarProgAGIM(area){
+  var misClases=Object.values(PROG_AREAS[area]||{});
+  if(misClases.length===0){toast('No tienes clases cargadas para enviar','err');return;}
+  var resumen=misClases.map(function(c){
+    return c.dia+' '+c.hi+'-'+c.hf+' | '+normAula(c.salon)+' | '+c.asignatura+(c.docente?' - '+c.docente:'')+(c.grupo?' ('+c.grupo+')':'');
+  }).join('\n');
+  var params={
+    to_email:CFG.CORREO,
+    from_name:AREA_LABELS_M[area]||area,
+    subject:'Programacion 2027-1 - '+(AREA_LABELS_M[area]||area),
+    message:'Estimada coordinacion GIM,\n\nProgramacion del area de '+(AREA_LABELS_M[area]||area)+' para el semestre 2027-1.\n\nTOTAL: '+misClases.length+' clases\n\n'+resumen+'\n\nCargado por: '+UA.usuario+'\nFecha: '+new Date().toLocaleString('es-CO')
+  };
+  toast('Enviando...','ok');
+  emailjs.init(CFG.EJS_PUB);
+  emailjs.send(CFG.EJS_SVC,CFG.EJS_TPL,params)
+    .then(function(){toast('Programacion enviada a GIM','ok');})
+    .catch(function(e){toast('Error EmailJS: '+(e.text||e.message),'err');});
+}
+
 </script>
+<div class="ov" id="ovAddClaseArea" style="display:none">
+  <div class="ov-box" style="max-width:480px">
+    <div class="ov-head">
+      <span id="ovAddClaseTit">➕ Agregar clase</span>
+      <button class="ov-close" onclick="closeOv('ovAddClaseArea')">✕</button>
+    </div>
+    <div class="ov-body">
+      <div class="field-row">
+        <label>Salón *</label>
+        <select id="acSalon"></select>
+      </div>
+      <div class="field-row">
+        <label>Día *</label>
+        <select id="acDia">
+          <option value="LUNES">Lunes</option><option value="MARTES">Martes</option>
+          <option value="MIERCOLES">Miércoles</option><option value="JUEVES">Jueves</option>
+          <option value="VIERNES">Viernes</option><option value="SABADO">Sábado</option>
+        </select>
+      </div>
+      <div class="field-row" style="display:flex;gap:12px">
+        <div style="flex:1"><label>Hora inicio *</label><select id="acHi"></select></div>
+        <div style="flex:1"><label>Hora fin *</label><select id="acHf"></select></div>
+      </div>
+      <div class="field-row">
+        <label>Asignatura / Módulo *</label>
+        <input id="acAsig" placeholder="Nombre de la clase o módulo">
+      </div>
+      <div class="field-row">
+        <label>Docente</label>
+        <input id="acDoc" placeholder="Nombre del docente">
+      </div>
+      <div class="field-row">
+        <label>Grupo / Código</label>
+        <input id="acGrupo" placeholder="Ej: GP-01, GEPUR-02">
+      </div>
+      <input type="hidden" id="acEditId">
+    </div>
+    <div class="ov-foot">
+      <button class="btn-sec" onclick="closeOv('ovAddClaseArea')">Cancelar</button>
+      <button class="btn-pri" onclick="saveClaseArea()">Guardar clase</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
