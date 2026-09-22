@@ -2254,20 +2254,45 @@ function renderHistorial(){
   const fd=(document.getElementById('hFechaD')||{value:''}).value;
   const fh=(document.getElementById('hFechaH')||{value:''}).value;
   const est=(document.getElementById('hEstado')||{value:''}).value;
-  let rs=rsvArr().filter(r=>{
-    const f=r.fecha||(r.fechas&&r.fechas[0])||'';
-    if(fd&&f<fd)return false;if(fh&&f>fh)return false;
+  var tb=document.getElementById('histBody');
+  if(!tb)return;
+  // Mostrar carga mientras Firebase conecta
+  if(Object.keys(RSV).length===0&&!modoLocal){
+    tb.innerHTML='<tr><td colspan="10" style="padding:30px;text-align:center;color:var(--muted)"><div style="font-size:22px;margin-bottom:8px">⏳</div>Cargando historial...<br><span style="font-size:11px;opacity:.6">Conectando con Firebase</span></td></tr>';
+    return;
+  }
+  var rs=rsvArr().filter(function(r){
+    var f=r.fecha||(r.fechas&&r.fechas[0])||'';
+    if(fd&&f<fd)return false;
+    if(fh&&f>fh)return false;
     if(est&&r.estado!==est)return false;
-    if(bus&&![r.evento,nombreR(r),depLabel(r),r.aula].some(v=>v&&v.toLowerCase().includes(bus)))return false;
+    if(bus&&![r.evento,nombreR(r),depLabel(r),r.aula].some(function(v){return v&&v.toLowerCase().includes(bus);}))return false;
     return true;
-  }).sort((a,b)=>{const fa=a.fecha||(a.fechas&&a.fechas[0])||'',fb=b.fecha||(b.fechas&&b.fechas[0])||'';return fb.localeCompare(fa);});
-  const EST_COL={confirmada:'success',pendiente:'warning',rechazada:'danger',mantenimiento:'slate'};
-  const EST_BG={confirmada:'var(--success-bg)',pendiente:'var(--warning-bg)',rechazada:'var(--danger-bg)',mantenimiento:'var(--n100)'};
-  const EST_TC={confirmada:'#065f46',pendiente:'#78350f',rechazada:'#991b1b',mantenimiento:'var(--muted)'};
-  document.getElementById('histBody').innerHTML=!rs.length?'<tr><td colspan="10" style="padding:30px;text-align:center;color:var(--muted)">Sin reservas encontradas</td></tr>':
-  rs.map(r=>{const s=CAT.find(x=>x.id===r.aula);const f=r.fecha||(r.fechas&&r.fechas.join(', '))||'—';const col=EST_TC[r.estado]||'var(--muted)';const bg=EST_BG[r.estado]||'var(--n100)';
-  return'<tr><td><strong>'+(s?s.n:r.aula)+'</strong></td><td>'+fC(f)+'</td><td>'+r.hi+'–'+r.hf+'</td><td>'+{dep:'🏢',est:'🎓',ext:'🌐'}[r.tipo||'dep']+'</td><td>'+trunc(nombreR(r),22)+'</td><td>'+trunc(depLabel(r),20)+'</td><td>'+trunc(r.evento,26)+'</td><td><span style="background:'+bg+';color:'+col+';border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700">'+( r.estado||'—' )+'</span></td><td style="font-size:11px;color:var(--muted)">'+( r.creadoPor||'—' )+'</td><td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="detRsv(this)" data-id="'+r.id+'" style="margin-right:4px"><i class="bi bi-eye"></i></button>'+(canDo('editar')?'<button class="btn btn-secondary btn-sm" onclick="editEl(this)" data-id="'+r.id+'" style="margin-right:4px"><i class="bi bi-pencil"></i></button>':'')+(canDo('aprobar')&&r.estado==='pendiente'?'<button class="btn btn-success btn-sm" onclick="approveEl(this)" data-id="'+ r.id +'" style="margin-right:2px"><i class="bi bi-check"></i></button><button class="btn btn-danger btn-sm" onclick="rejectEl(this)" data-id="'+ r.id +'"><i class="bi bi-x"></i></button>':'')+(canDo('eliminar')?'<button class="btn btn-danger btn-sm" onclick="delEl(this)" data-id="'+r.id+'" style="margin-left:4px"><i class="bi bi-trash3"></i></button>':'')+'</td></tr>';}).join('');
+  }).sort(function(a,b){
+    var fa=a.fecha||(a.fechas&&a.fechas[0])||'';
+    var fb=b.fecha||(b.fechas&&b.fechas[0])||'';
+    return fb.localeCompare(fa);
+  });
+  var EST_BG={confirmada:'var(--success-bg)',pendiente:'var(--warning-bg)',rechazada:'var(--danger-bg)',mantenimiento:'var(--n100)'};
+  var EST_TC={confirmada:'#065f46',pendiente:'#78350f',rechazada:'#991b1b',mantenimiento:'var(--muted)'};
+  if(!rs.length){
+    tb.innerHTML='<tr><td colspan="10" style="padding:30px;text-align:center;color:var(--muted)">Sin reservas encontradas</td></tr>';
+    return;
+  }
+  tb.innerHTML=rs.map(function(r){
+    var s=CAT.find(function(x){return x.id===r.aula;});
+    var f=r.fecha||(r.fechas&&r.fechas.join(', '))||'—';
+    var col=EST_TC[r.estado]||'var(--muted)';
+    var bg=EST_BG[r.estado]||'var(--n100)';
+    var tipo={dep:'🏢',est:'🎓',ext:'🌐'}[r.tipo||'dep'];
+    var acciones='<button class="btn btn-secondary btn-sm" onclick="detRsv(this)" data-id="'+r.id+'" style="margin-right:4px"><i class="bi bi-eye"></i></button>';
+    if(canDo('editar'))acciones+='<button class="btn btn-secondary btn-sm" onclick="editEl(this)" data-id="'+r.id+'" style="margin-right:4px"><i class="bi bi-pencil"></i></button>';
+    if(canDo('aprobar')&&r.estado==='pendiente')acciones+='<button class="btn btn-success btn-sm" onclick="approveEl(this)" data-id="'+r.id+'" style="margin-right:2px"><i class="bi bi-check"></i></button><button class="btn btn-danger btn-sm" onclick="rejectEl(this)" data-id="'+r.id+'"><i class="bi bi-x"></i></button>';
+    if(canDo('eliminar'))acciones+='<button class="btn btn-danger btn-sm" onclick="delEl(this)" data-id="'+r.id+'" style="margin-left:4px"><i class="bi bi-trash3"></i></button>';
+    return '<tr><td><strong>'+(s?s.n:r.aula)+'</strong></td><td>'+fC(f)+'</td><td>'+r.hi+'–'+r.hf+'</td><td>'+tipo+'</td><td>'+trunc(nombreR(r),22)+'</td><td>'+trunc(depLabel(r),20)+'</td><td>'+trunc(r.evento,26)+'</td><td><span style="background:'+bg+';color:'+col+';border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700">'+(r.estado||'—')+'</span></td><td style="font-size:11px;color:var(--muted)">'+(r.creadoPor||'—')+'</td><td style="white-space:nowrap">'+acciones+'</td></tr>';
+  }).join('');
 }
+
 function clearHistFilters(){['hSearch','hFechaD','hFechaH','hEstado'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});renderHistorial();}
 
 /* ═══ INVENTARIO ═══ */
