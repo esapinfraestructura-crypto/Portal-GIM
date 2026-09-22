@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Sistema de Gestión de Aulas — ESAP v3.0</title>
+<title>Sistema de Gestión de Aulas — ESAP</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
 <style>
 /* ═══════════════ VARIABLES CORPORATIVAS ══════════════ */
@@ -621,7 +621,7 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
     <div class="login-footer">
       Sistema desarrollado y administrado por<br>
       <strong style="color:rgba(255,255,255,.5)">Duberly Karime Carvajal Pico</strong><br>
-      Oficina de Infraestructura y Mantenimiento — GIM · v3.0 · 2026
+      Oficina de Infraestructura y Mantenimiento — GIM · 2026
     </div>
   </div>
 </div>
@@ -690,7 +690,7 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
       <div class="nav-item" data-tab="admin" id="navAdmin" style="display:none"><i class="bi bi-shield-lock"></i> Gestión de Usuarios</div>
       <div class="sidebar-footer">
         <div style="font-size:10px;color:rgba(255,255,255,.3);line-height:1.7">
-          GIM — ESAP · v3.0<br>
+          GIM — ESAP<br>
           <span id="sidebarUserName"></span>
         </div>
       </div>
@@ -1282,290 +1282,7 @@ table.grilla tbody tr:hover td{filter:brightness(.97);}
 
 <div class="toast-wrap" id="toastWrap"></div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">/* ═══════════════════════════════════════════════════════════════
-   MÓDULO COLABORATIVO — COORDINACIONES DE ÁREA
-   coord.pregrado / coord.posgrado.d / coord.posgrado.n
-═══════════════════════════════════════════════════════════════ */
-
-const AREA_LABELS = {pregrado:'Pregrado',posgrado_d:'Posgrado Diurno',posgrado_n:'Posgrado Nocturno'};
-const AREA_COLORS = {pregrado:'#f59e0b',posgrado_d:'#8b5cf6',posgrado_n:'#ec4899'};
-let PROG_AREAS = {pregrado:{},posgrado_d:{},posgrado_n:{}};  // Firebase programacion_2027_1
-let PROG_REF = null;
-
-// Iniciar listener Firebase para programación de áreas
-function initProgAreas(){
-  if(!db||PROG_REF) return;
-  PROG_REF = db.ref('programacion_2027_1');
-  PROG_REF.on('value', snap=>{
-    const d = snap.val()||{};
-    PROG_AREAS = {pregrado:{},posgrado_d:{},posgrado_n:{}};
-    Object.keys(d).forEach(area=>{
-      if(d[area]) PROG_AREAS[area] = d[area];
-    });
-    // Si estamos en el tab miprog, re-renderizar
-    if(TAB==='miprog') renderMiProg();
-    // También actualizar grilla principal para admins/gestores
-    if(TAB==='grilla') render();
-  });
-}
-
-// Llamar initProgAreas cuando Firebase inicie
-// (se agrega al flujo existente de bootApp)
-
-// Detectar si hay clase de área en un salon/dia/franja
-function claseProgramadaArea(salon, dia, franja){
-  const hf = sigF(franja);
-  for(const area of Object.keys(PROG_AREAS)){
-    const clases = Object.values(PROG_AREAS[area]);
-    const c = clases.find(cl=>
-      normAula(cl.salon)===salon && cl.dia===dia && solapa(cl.hi,cl.hf,franja,hf)
-    );
-    if(c) return {area, clase:c};
-  }
-  return null;
-}
-
-// ── RENDER MÓDULO MI PROGRAMACIÓN ────────────────────────────────
-function renderMiProg(){
-  const cont = document.getElementById('main-content');
-  if(!cont) return;
-  const area = UA.area;
-  const aLabel = AREA_LABELS[area]||area;
-  const aColor = AREA_COLORS[area]||'#60a5fa';
-  const misClases = Object.entries(PROG_AREAS[area]||{});
-  
-  // KPIs
-  const totalMias = misClases.length;
-  const diasUsados = [...new Set(misClases.map(([,c])=>c.dia))].length;
-  const salonesUsados = [...new Set(misClases.map(([,c])=>normAula(c.salon)))].length;
-
-  // Construir tabla grilla compacta
-  const DIAS_PROG = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'];
-  const HORAS_PROG = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
-  
-  // Salones visibles (solo los primeros 10 para no saturar)
-  const salonesVis = CAT.slice(0,14);
-
-  let filas = '';
-  HORAS_PROG.forEach(hora=>{
-    filas += '<tr>';
-    filas += `<td class="hora-lbl">${hora}</td>`;
-    salonesVis.forEach(sal=>{
-      const sId = sal.id || sal.nombre;
-      const hf = sigF(hora);
-      // 1. Bloqueado
-      if(BLOQUEADOS.has(sId)){
-        filas+=`<td class="mc-bloq"><div class="mc-inner"><span style="font-size:8px;color:#fca5a5">Bloqueado</span></div></td>`;
-        return;
-      }
-      // 2. Clase oficial AP/EP
-      const of = CLS.find(c=>normAula(c.salon)===sId&&c.dia===DIAS_PROG[0]&&solapa(c.hi,c.hf,hora,hf));
-      if(of){
-        const tag = of.programa==='AP'?'AP':'EP';
-        const bg = of.programa==='AP'?'mc-ap':'mc-ep';
-        filas+=`<td class="${bg}" title="${of.asignatura}"><div class="mc-inner"><span class="mc-tag" style="background:${of.programa==='AP'?'#1e3a5f':'#14532d'};color:#fff">${tag}</span><br><span style="color:rgba(255,255,255,.7)">${(of.asignatura||'').substring(0,14)}</span></div></td>`;
-        return;
-      }
-      // 3. Otra área
-      const otra = claseProgramadaArea(sId, DIAS_PROG[0], hora);
-      if(otra && otra.area !== area){
-        const oColor = AREA_COLORS[otra.area]||'#f59e0b';
-        filas+=`<td class="mc-otra" title="${AREA_LABELS[otra.area]}: ${otra.clase.asignatura||''}"><div class="mc-inner"><span class="mc-tag" style="background:${oColor}30;color:${oColor}">${AREA_LABELS[otra.area]}</span><br><span style="color:rgba(255,255,255,.6);font-size:8px">${(otra.clase.asignatura||'').substring(0,12)}</span></div></td>`;
-        return;
-      }
-      // 4. Propia
-      if(otra && otra.area === area){
-        const [cId, c] = misClases.find(([,cl])=>normAula(cl.salon)===sId&&cl.dia===DIAS_PROG[0]&&solapa(cl.hi,cl.hf,hora,hf))||[null,null];
-        if(c) {
-          filas+=`<td class="mc-propia" onclick="editClaseArea('${cId}')" title="Clic para editar"><div class="mc-inner"><span class="mc-tag" style="background:#065f46;color:#6ee7b7">MÍA ✎</span><br><span style="color:#6ee7b7">${(c.asignatura||'').substring(0,14)}</span></div></td>`;
-          return;
-        }
-      }
-      // 5. Libre
-      filas+=`<td class="mc-libre" onclick="openAddClaseArea('${sId}','LUNES','${hora}')"><div class="mc-libre-lbl">+</div></td>`;
-    });
-    filas += '</tr>';
-  });
-
-  const encabezados = salonesVis.map(s=>`<th>${(s.id||s.nombre).substring(0,8)}</th>`).join('');
-
-  cont.innerHTML = `
-<div style="padding:16px 24px;height:100%;overflow-y:auto">
-  <div class="mprog-header">
-    <h2>📋 Mi Programación — ${aLabel}</h2>
-    <p>Semestre 2027-1 · Agrega y edita tus clases sin afectar las demás áreas</p>
-  </div>
-  
-  <div class="mprog-kpis">
-    <div class="mprog-kpi"><span>${totalMias}</span><small>Clases cargadas</small></div>
-    <div class="mprog-kpi"><span>${diasUsados}</span><small>Días con clase</small></div>
-    <div class="mprog-kpi"><span>${salonesUsados}</span><small>Salones usados</small></div>
-  </div>
-
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:10px">
-    <div class="legend-row">
-      <span><span class="leg-c" style="background:#1e3a5f80;border:1px solid #3b82f6"></span> Clase AP (oficial)</span>
-      <span><span class="leg-c" style="background:#14532d60;border:1px solid #22c55e"></span> Clase EP (oficial)</span>
-      <span><span class="leg-c" style="background:${aColor}30;border:1px solid ${aColor}"></span> Otra área</span>
-      <span><span class="leg-c" style="background:#065f4660;border:1px solid #6ee7b7"></span> Mi programación (editable)</span>
-      <span><span class="leg-c" style="background:transparent;border:1px solid #3b82f6"></span> Libre — clic para agregar</span>
-    </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn-add-clase" onclick="openAddClaseArea(null,null,null)">+ Agregar clase</button>
-      <button class="btn-enviar-gim" onclick="enviarProgAGIM('${area}')">📧 Enviar programación a GIM</button>
-    </div>
-  </div>
-
-  <div class="mprog-grid-wrap">
-    <table class="mprog-table">
-      <thead><tr><th style="width:60px">Hora</th>${encabezados}</tr></thead>
-      <tbody>${filas}</tbody>
-    </table>
-  </div>
-
-  ${totalMias>0?`
-  <div style="margin-top:20px">
-    <div style="font-size:12px;font-weight:700;color:var(--b300);margin-bottom:10px">Mis clases cargadas (${totalMias})</div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px">
-      ${misClases.map(([id,c])=>`
-      <div style="background:var(--b800);border:1px solid #065f46;border-radius:8px;padding:8px 12px;font-size:11px;min-width:200px">
-        <div style="font-weight:700;color:#6ee7b7">${c.asignatura||'Sin nombre'}</div>
-        <div style="color:var(--b400)">${c.salon} · ${c.dia} · ${c.hi}–${c.hf}</div>
-        ${c.docente?`<div style="color:var(--b400)">${c.docente}</div>`:''}
-        <div style="margin-top:6px;display:flex;gap:6px">
-          <button onclick="editClaseArea('${id}')" style="background:#1d4ed8;color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer">✎ Editar</button>
-          <button onclick="deleteClaseArea('${id}')" style="background:#7f1d1d;color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer">🗑 Eliminar</button>
-        </div>
-      </div>`).join('')}
-    </div>
-  </div>`:''}
-</div>`;
-}
-
-// ── FORMULARIO AGREGAR/EDITAR ─────────────────────────────────────
-function openAddClaseArea(salon, dia, hora){
-  // Llenar selector de salones
-  const selSalon = document.getElementById('acSalon');
-  selSalon.innerHTML = CAT.map(s=>`<option value="${s.id||s.nombre}" ${salon===s.id?'selected':''}>${s.id||s.nombre} (cap. ${s.cap||'—'})</option>`).join('');
-  // Llenar horas
-  const hiSel=document.getElementById('acHi');
-  const hfSel=document.getElementById('acHf');
-  hiSel.innerHTML=FR.map(h=>`<option value="${h}" ${h===hora?'selected':''}>${h}</option>`).join('');
-  hfSel.innerHTML=FR.map(h=>`<option value="${h}" ${h===sigF(hora||'07:00')?'selected':''}>${h}</option>`).join('');
-  if(dia) document.getElementById('acDia').value=dia;
-  document.getElementById('acAsig').value='';
-  document.getElementById('acDoc').value='';
-  document.getElementById('acGrupo').value='';
-  document.getElementById('acEditId').value='';
-  document.getElementById('ovAddClaseTit').textContent='➕ Agregar clase';
-  document.getElementById('ovAddClaseArea').style.display='flex';
-}
-
-function editClaseArea(id){
-  const c = (PROG_AREAS[UA.area]||{})[id];
-  if(!c) return;
-  openAddClaseArea(normAula(c.salon), c.dia, c.hi);
-  document.getElementById('acSalon').value=c.salon;
-  document.getElementById('acDia').value=c.dia;
-  document.getElementById('acHi').value=c.hi;
-  document.getElementById('acHf').value=c.hf;
-  document.getElementById('acAsig').value=c.asignatura||'';
-  document.getElementById('acDoc').value=c.docente||'';
-  document.getElementById('acGrupo').value=c.grupo||'';
-  document.getElementById('acEditId').value=id;
-  document.getElementById('ovAddClaseTit').textContent='✎ Editar clase';
-}
-
-async function saveClaseArea(){
-  const area = UA.area;
-  const salon = document.getElementById('acSalon').value;
-  const dia   = document.getElementById('acDia').value;
-  const hi    = document.getElementById('acHi').value;
-  const hf    = document.getElementById('acHf').value;
-  const asig  = document.getElementById('acAsig').value.trim();
-  const doc   = document.getElementById('acDoc').value.trim();
-  const grupo = document.getElementById('acGrupo').value.trim();
-  const editId= document.getElementById('acEditId').value;
-
-  if(!asig){ toast('Ingresa el nombre de la clase','err'); return; }
-  if(tm(hi)>=tm(hf)){ toast('La hora fin debe ser mayor que la hora inicio','err'); return; }
-
-  // ── VERIFICAR CONFLICTOS ──────────────────────────────────────
-  const salonNorm = normAula(salon);
-
-  // 1. Contra clases oficiales
-  const confOf = CLS.find(c=>normAula(c.salon)===salonNorm&&c.dia===dia&&solapa(c.hi,c.hf,hi,hf));
-  if(confOf){ toast(`⛔ Conflicto con clase oficial: "${confOf.asignatura}" (${confOf.hi}-${confOf.hf})`,'err'); return; }
-
-  // 2. Contra otras áreas
-  for(const oArea of Object.keys(PROG_AREAS)){
-    if(oArea===area) continue;
-    const confOtra = Object.entries(PROG_AREAS[oArea]||{}).find(([id,c])=>
-      normAula(c.salon)===salonNorm && c.dia===dia && solapa(c.hi,c.hf,hi,hf)
-    );
-    if(confOtra){
-      toast(`⛔ El salón ${salonNorm} ya fue asignado por ${AREA_LABELS[oArea]} en ese horario`,'err');
-      return;
-    }
-  }
-
-  // 3. Contra la propia área (evitar duplicados en mismo slot, excluyendo la que se edita)
-  const confPropia = Object.entries(PROG_AREAS[area]||{}).find(([id,c])=>
-    id!==editId && normAula(c.salon)===salonNorm && c.dia===dia && solapa(c.hi,c.hf,hi,hf)
-  );
-  if(confPropia){ toast('Ya tienes una clase asignada en ese salón y horario','err'); return; }
-
-  // ── GUARDAR EN FIREBASE ───────────────────────────────────────
-  const datos = {salon,dia,hi,hf,asignatura:asig,docente:doc,grupo,area,
-    creadoPor:UA.usuario, fechaCarga:new Date().toISOString()};
-  
-  try {
-    const ref = db.ref('programacion_2027_1/'+area+'/'+(editId||db.ref().push().key));
-    await ref.set(datos);
-    closeOv('ovAddClaseArea');
-    toast('✅ Clase guardada correctamente','ok');
-  } catch(e){ toast('Error al guardar: '+e.message,'err'); }
-}
-
-async function deleteClaseArea(id){
-  if(!confirm('¿Eliminar esta clase de tu programación?')) return;
-  try{
-    await db.ref('programacion_2027_1/'+UA.area+'/'+id).remove();
-    toast('Clase eliminada','ok');
-  }catch(e){ toast('Error: '+e.message,'err'); }
-}
-
-// ── ENVIAR PROGRAMACIÓN A GIM POR EMAILJS ────────────────────────
-async function enviarProgAGIM(area){
-  const misClases = Object.values(PROG_AREAS[area]||{});
-  if(misClases.length===0){ toast('No tienes clases cargadas aún para enviar','err'); return; }
-  
-  const resumen = misClases.map(c=>
-    `${c.dia} ${c.hi}-${c.hf} | ${normAula(c.salon)} | ${c.asignatura}${c.docente?' — '+c.docente:''}${c.grupo?' ('+c.grupo+')':''}`
-  ).join('\n');
-
-  const params = {
-    to_email: CFG.CORREO,
-    from_name: AREA_LABELS[area]||area,
-    subject: 'Programación 2027-1 — '+AREA_LABELS[area],
-    message: `Estimada coordinación GIM,\n\nSe adjunta la programación del área de ${AREA_LABELS[area]} para el semestre 2027-1.\n\nTOTAL: ${misClases.length} clases\n\n${resumen}\n\nCargado por: ${UA.usuario}\nFecha: ${new Date().toLocaleString('es-CO')}`,
-    reply_to: UA.correo||CFG.CORREO
-  };
-
-  try{
-    toast('Enviando programación...','ok');
-    await emailjs.init(CFG.EJS_PUB);
-    await emailjs.send(CFG.EJS_SVC, CFG.EJS_TPL, params);
-    toast('✅ Programación enviada a GIM por correo','ok');
-  }catch(e){
-    toast('Error EmailJS: '+e.message,'err');
-    console.error('EmailJS error:',e);
-  }
-}
-
-/* ═══ MODIFICAR render() PARA INCLUIR MIPROG ═══ */
-// (se parchea abajo el TAB dispatch)
-</script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -1842,7 +1559,7 @@ let DEPENDENCIAS = [
 ];
 
 // Version del semestre - cambiar cada semestre para limpiar cache
-const SCHED_VERSION = '2026-2-v8';
+const SCHED_VERSION = '2026-2-v9';
 if(localStorage.getItem('salones_sched_v')!==SCHED_VERSION){
   // Al cambiar version: solo limpiar el formato legado de ediciones
   // Las ediciones v2 (por clave estable) y las eliminaciones sobreviven
@@ -3153,6 +2870,161 @@ function bloqEl(el){toggleBloq(el.dataset.id,el.dataset.block==='true');}
 function approveEl(el){changeStatus(el.dataset.id,'confirmada');}
 function rejectEl(el){changeStatus(el.dataset.id,'rechazada');}
 
+/* ═══ MÓDULO ÁREAS — PROGRAMACIÓN 2027-1 ═══ */
+function renderMiProg(){
+  var cont=document.getElementById('main-content');
+  if(!cont)return;
+  var area=UA.area;
+  var aLabel=AREA_LABELS_M[area]||area;
+  var misClases=Object.entries(PROG_AREAS[area]||{});
+  var frOpts=FR.map(function(h){return'<option value="'+h+'">'+h+'</option>';}).join('');
+  var salonesOpts=CAT.map(function(s){
+    return'<option value="'+s.id+'">'+s.id+' — cap. '+(s.cap||'?')+' personas</option>';
+  }).join('');
+  var DIAS_ORD=['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'];
+  var porDia={};
+  misClases.forEach(function(e){var d=e[1].dia;if(!porDia[d])porDia[d]=0;porDia[d]++;});
+  var resumenDias=DIAS_ORD.filter(function(d){return porDia[d];}).map(function(d){
+    return'<div style="background:var(--b800);border-radius:6px;padding:6px 12px;text-align:center;border-top:2px solid #065f46">'
+      +'<div style="font-size:10px;color:#6ee7b7;font-weight:700">'+d.substring(0,3)+'</div>'
+      +'<div style="font-size:18px;font-weight:700;color:var(--az-claro)">'+porDia[d]+'</div>'
+      +'</div>';
+  }).join('')||'<div style="color:var(--b400);font-size:12px">Sin clases aún</div>';
+  var cards=misClases.length===0
+    ?'<div style="text-align:center;padding:32px 0;color:var(--b400)"><div style="font-size:32px;margin-bottom:8px">📋</div><div style="font-size:13px">Aún no has cargado clases.<br>Usa el formulario para agregar.</div></div>'
+    :misClases.map(function(e){
+        var id=e[0],c=e[1];
+        return'<div style="background:var(--b800);border:1px solid #065f46;border-radius:10px;padding:12px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'
+          +'<div style="flex:1"><div style="font-weight:700;color:#6ee7b7;font-size:13px;margin-bottom:3px">'+(c.asignatura||'')+'</div>'
+          +'<div style="color:var(--b300);font-size:11px;display:flex;gap:12px;flex-wrap:wrap">'
+          +'<span>🏫 '+(c.salon||'')+'</span><span>📅 '+(c.dia||'')+'</span>'
+          +'<span>⏰ '+(c.hi||'')+' – '+(c.hf||'')+'</span>'
+          +(c.docente?'<span>👤 '+c.docente+'</span>':'')
+          +(c.grupo?'<span>👥 '+c.grupo+'</span>':'')
+          +'</div></div>'
+          +'<div style="display:flex;gap:6px;flex-shrink:0">'
+          +'<button onclick="editClaseArea(\''+id+'\')" style="background:#1d4ed8;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">✎ Editar</button>'
+          +'<button onclick="deleteClaseArea(\''+id+'\')" style="background:#7f1d1d;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">🗑</button>'
+          +'</div></div>';
+      }).join('');
+  cont.innerHTML='<div style="padding:20px 24px;height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:20px">'
+    +'<div style="background:linear-gradient(135deg,#1e3a5f,#1565c0);color:#fff;padding:18px 22px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
+    +'<div><div style="font-size:18px;font-weight:700;margin-bottom:3px">📋 Mi Programación — '+aLabel+'</div>'
+    +'<div style="font-size:11px;opacity:.75">Semestre 2027-1 · '+misClases.length+' clases cargadas</div></div>'
+    +'<button onclick="enviarProgAGIM(\''+area+'\')" style="background:linear-gradient(135deg,#059669,#047857);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📧 Enviar a GIM</button>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--b300)">Clases por día:</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'+resumenDias+'</div></div>'
+    +'<div style="background:var(--b800);border:1px solid var(--b600);border-radius:12px;padding:20px">'
+    +'<div style="font-size:14px;font-weight:700;color:var(--az-claro);margin-bottom:16px" id="mpFormTit">➕ Agregar clase</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+    +'<div><label style="font-size:10px;font-weight:700;color:var(--b300);display:block;margin-bottom:4px">ASIGNATURA / MÓDULO *</label>'
+    +'<input id="mpAsig" placeholder="Nombre de la clase o módulo" style="width:100%;background:var(--b700);border:1px solid var(--b500);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--b100);font-family:inherit"></div>'
+    +'<div><label style="font-size:10px;font-weight:700;color:var(--b300);display:block;margin-bottom:4px">DOCENTE</label>'
+    +'<input id="mpDoc" placeholder="Nombre del docente" style="width:100%;background:var(--b700);border:1px solid var(--b500);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--b100);font-family:inherit"></div>'
+    +'<div><label style="font-size:10px;font-weight:700;color:var(--b300);display:block;margin-bottom:4px">GRUPO / CÓDIGO</label>'
+    +'<input id="mpGrupo" placeholder="Ej: GP-01" style="width:100%;background:var(--b700);border:1px solid var(--b500);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--b100);font-family:inherit"></div>'
+    +'<div><label style="font-size:10px;font-weight:700;color:var(--b300);display:block;margin-bottom:4px">DÍA *</label>'
+    +'<select id="mpDia" style="width:100%;background:var(--b700);border:1px solid var(--b500);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--b100);font-family:inherit">'
+    +'<option value="LUNES">Lunes</option><option value="MARTES">Martes</option>'
+    +'<option value="MIERCOLES">Miércoles</option><option value="JUEVES">Jueves</option>'
+    +'<option value="VIERNES">Viernes</option><option value="SABADO">Sábado</option>'
+    +'</select></div>'
+    +'<div><label style="font-size:10px;font-weight:700;color:var(--b300);display:block;margin-bottom:4px">HORA INICIO *</label>'
+    +'<select id="mpHi" style="width:100%;background:var(--b700);border:1px solid var(--b500);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--b100);font-family:inherit">'+frOpts+'</select></div>'
+    +'<div><label style="font-size:10px;font-weight:700;color:var(--b300);display:block;margin-bottom:4px">HORA FIN *</label>'
+    +'<select id="mpHf" style="width:100%;background:var(--b700);border:1px solid var(--b500);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--b100);font-family:inherit">'+frOpts+'</select></div>'
+    +'</div>'
+    +'<div style="margin-top:12px"><label style="font-size:10px;font-weight:700;color:var(--b300);display:block;margin-bottom:4px">SALÓN * — selecciona según la capacidad del grupo</label>'
+    +'<select id="mpSalon" style="width:100%;background:var(--b700);border:1px solid var(--b500);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--b100);font-family:inherit">'+salonesOpts+'</select></div>'
+    +'<div id="mpError" style="display:none;background:#7f1d1d;color:#fca5a5;border-radius:7px;padding:8px 12px;font-size:12px;margin-top:10px"></div>'
+    +'<div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">'
+    +'<button onclick="mpLimpiar()" style="background:var(--b700);color:var(--b300);border:1px solid var(--b500);padding:9px 18px;border-radius:7px;font-size:13px;cursor:pointer;font-family:inherit">Limpiar</button>'
+    +'<button onclick="mpGuardar()" style="background:#1d4ed8;color:#fff;border:none;padding:9px 22px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💾 Guardar clase</button>'
+    +'</div><input type="hidden" id="mpEditId">'
+    +'</div>'
+    +'<div><div style="font-size:13px;font-weight:700;color:var(--b300);margin-bottom:12px">Clases cargadas ('+misClases.length+')</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'+cards+'</div></div>'
+    +'</div>';
+  var hiEl=document.getElementById('mpHi');
+  if(hiEl)hiEl.addEventListener('change',function(){
+    var i=FR.indexOf(this.value);
+    var hfEl=document.getElementById('mpHf');
+    if(hfEl)hfEl.value=FR[Math.min(i+2,FR.length-1)];
+  });
+}
+
+function mpLimpiar(){
+  ['mpAsig','mpDoc','mpGrupo'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var eid=document.getElementById('mpEditId');if(eid)eid.value='';
+  var tit=document.getElementById('mpFormTit');if(tit)tit.textContent='➕ Agregar clase';
+  var err=document.getElementById('mpError');if(err)err.style.display='none';
+}
+
+function mpGuardar(){
+  try{
+    var area=UA.area;
+    var asig=(document.getElementById('mpAsig').value||'').trim();
+    var doc2=(document.getElementById('mpDoc').value||'').trim();
+    var grupo=(document.getElementById('mpGrupo').value||'').trim();
+    var dia=document.getElementById('mpDia').value;
+    var hi=document.getElementById('mpHi').value;
+    var hf=document.getElementById('mpHf').value;
+    var salon=document.getElementById('mpSalon').value;
+    var editId=(document.getElementById('mpEditId').value||'').trim();
+    var errEl=document.getElementById('mpError');
+    function showErr(m){if(errEl){errEl.textContent=m;errEl.style.display='block';}}
+    function hideErr(){if(errEl)errEl.style.display='none';}
+    if(!asig){showErr('Ingresa el nombre de la asignatura o módulo');return;}
+    if(tm(hi)>=tm(hf)){showErr('La hora fin debe ser mayor que la hora inicio');return;}
+    hideErr();
+    var sn=normAula(salon);
+    var confOf=CLS.find(function(c){return normAula(c.salon)===sn&&c.dia===dia&&solapa(c.hi,c.hf,hi,hf);});
+    if(confOf){showErr('⛔ Conflicto con clase oficial: "'+confOf.asignatura+'" ('+confOf.hi+'–'+confOf.hf+')');return;}
+    var areas=Object.keys(PROG_AREAS);
+    for(var ai=0;ai<areas.length;ai++){
+      var oa=areas[ai];if(oa===area)continue;
+      var ents=Object.entries(PROG_AREAS[oa]||{});
+      for(var ei=0;ei<ents.length;ei++){
+        var oc=ents[ei][1];
+        if(normAula(oc.salon)===sn&&oc.dia===dia&&solapa(oc.hi,oc.hf,hi,hf)){
+          showErr('⛔ '+(AREA_LABELS_M[oa]||oa)+' ya asignó ese salón en ese horario');return;
+        }
+      }
+    }
+    var confP=Object.entries(PROG_AREAS[area]||{}).find(function(e){
+      return e[0]!==editId&&normAula(e[1].salon)===sn&&e[1].dia===dia&&solapa(e[1].hi,e[1].hf,hi,hf);
+    });
+    if(confP){showErr('Ya tienes una clase en ese salón y horario');return;}
+    var datos={salon:salon,dia:dia,hi:hi,hf:hf,asignatura:asig,docente:doc2,grupo:grupo,
+      area:area,creadoPor:UA.usuario,fechaCarga:new Date().toISOString()};
+    var key=editId||db.ref().push().key;
+    db.ref('programacion_2027_1/'+area+'/'+key).set(datos)
+      .then(function(){toast('✅ Clase guardada','ok');mpLimpiar();})
+      .catch(function(e){showErr('Error al guardar: '+e.message);});
+  }catch(e){console.error('mpGuardar:',e);}
+}
+
+function editClaseArea(id){
+  try{
+    var c=(PROG_AREAS[UA.area]||{})[id];
+    if(!c)return;
+    var el=function(i){return document.getElementById(i);};
+    if(el('mpAsig'))el('mpAsig').value=c.asignatura||'';
+    if(el('mpDoc'))el('mpDoc').value=c.docente||'';
+    if(el('mpGrupo'))el('mpGrupo').value=c.grupo||'';
+    if(el('mpDia'))el('mpDia').value=c.dia||'LUNES';
+    if(el('mpHi'))el('mpHi').value=c.hi||'07:00';
+    if(el('mpHf'))el('mpHf').value=c.hf||'09:00';
+    if(el('mpSalon'))el('mpSalon').value=c.salon||'';
+    if(el('mpEditId'))el('mpEditId').value=id;
+    if(el('mpFormTit'))el('mpFormTit').textContent='✎ Editando clase';
+    if(el('mpAsig'))el('mpAsig').focus();
+    toast('Clase lista para editar','ok');
+  }catch(e){console.error('editClaseArea:',e);}
+}
+
 /* ═══ RENDER PRINCIPAL ═══ */
 function render(){
   renderKPI();
@@ -3161,7 +3033,6 @@ function render(){
   else if(TAB==='historial')renderHistorial();
   else if(TAB==='inventario')renderInventario();
   else if(TAB==='indicadores')renderIndicadores();
-  else if(TAB==='miprog')renderMiProg();
   else if(TAB==='admin'&&UA&&UA.rol==='admin')renderAdmin();else if(TAB==='admin'){goToTab('grilla');toast('⛔ Solo el administrador puede acceder a este panel','err');}
 }
 function goToTab(tab){const nav=document.querySelector('[data-tab="'+tab+'"]');if(nav)nav.click();}
@@ -3371,6 +3242,10 @@ function enviarProgAGIM(area){
     .catch(function(e){toast('Error EmailJS: '+(e.text||e.message),'err');});
 }
 
+
+/* ═══ MANEJADOR GLOBAL DE ERRORES ═══ */
+window.onerror=function(m,s,l){console.error('GIM Error:',m,'L'+l);return false;};
+window.addEventListener('unhandledrejection',function(e){console.error('GIM Promise:',e.reason);});
 </script>
 <div class="ov" id="ovAddClaseArea" style="display:none">
   <div class="ov-box" style="max-width:480px">
