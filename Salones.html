@@ -1756,10 +1756,24 @@ function initFirebase(){
     setSyncStatus('Conectando…','wait');
     setTimeout(initProgAreas,500); // Llamar después de que db esté listo
     render(); // Render inmediato con datos locales (clases sin reservas)
+    // Timeout: si Firebase no responde en 10s → modo local
+    window._fbConnTimeout=setTimeout(function(){
+      if(!modoLocal&&Object.keys(RSV).length===0){
+        modoLocal=true;
+        setSyncStatus('⚠️ Sin Firebase — modo local','wait');
+        render();
+        console.warn('GIM: Firebase timeout — activando modo local');
+      }
+    },10000);
     dbRef.on('value',snap=>{
       RSV={};const d=snap.val();if(d)Object.keys(d).forEach(k=>RSV[k]=d[k]);
+      clearTimeout(window._fbConnTimeout);modoLocal=false;
       setSyncStatus('🟢 En tiempo real','on');render();cargarEventosIniciales();
-    },()=>setSyncStatus('❌ Sin conexión','off'));
+    },()=>{
+      modoLocal=true;
+      setSyncStatus('❌ Sin conexión — modo local','off');
+      render();
+    });
     usersRef.on('value',snap=>{USERS={};const d=snap.val();if(d)Object.keys(d).forEach(k=>USERS[k]=d[k]);if(TAB==='admin')renderAdmin();});
     bloqRef.on('value',snap=>{
       const d=snap.val();
@@ -2632,7 +2646,21 @@ async function saveRsv(){
     if(!EDID&&obj.estado==='confirmada')await sendEmail(obj);
     const okEl=document.getElementById('rsvOk');okEl.textContent='✅ Reserva '+(EDID?'actualizada':'guardada')+' exitosamente.';okEl.className='alert-ok on';
     setTimeout(()=>closePanel('ovRsv'),1800);toast(EDID?'✓ Actualizada':'✓ Guardada y confirmación enviada','ok');
-  }catch(e){console.error('saveRsv error:',e);toast('❌ Error: '+(e&&e.message?e.message:'Sin conexión Firebase'),'err');}
+  }catch(e){
+    console.error('saveRsv error:',e);
+    // Fallback: si Firebase falla, guardar localmente
+    try{
+      const obj2=readForm();
+      if(obj2&&obj2.aula){
+        const id='loc_'+Date.now();obj2.id=id;RSV[id]=obj2;
+        saveLocal();render();
+        toast('✓ Guardado localmente (sin conexión Firebase)','ok');
+        setTimeout(()=>closePanel('ovRsv'),1800);
+        return;
+      }
+    }catch(e2){console.error('fallback error:',e2);}
+    toast('❌ Error: '+(e&&e.message?e.message:'Revisa tu conexión'),'err');
+  }
   finally{btn.innerHTML='<i class="bi bi-check-lg"></i> Guardar Reserva';btn.disabled=false;}
 }
 function showRsvAlert(m){const e=document.getElementById('rsvAlert');e.textContent=m;e.className='alert-form on';}
@@ -3048,7 +3076,7 @@ function editClaseArea(id){
 }
 
 /* ═══ RENDER PRINCIPAL ═══ */
-function render(){
+function render(){try{
   renderKPI();
   if(TAB==='grilla'){if(VISTA==='grilla')renderGrilla();else if(VISTA==='semana')renderSemana();else renderLista();}
   else if(TAB==='miprog')renderMiProg();
@@ -3056,7 +3084,8 @@ function render(){
   else if(TAB==='inventario')renderInventario();
   else if(TAB==='indicadores')renderIndicadores();
   else if(TAB==='admin'&&UA&&UA.rol==='admin')renderAdmin();else if(TAB==='admin'){goToTab('grilla');toast('⛔ Solo el administrador puede acceder a este panel','err');}
-}
+}catch(e){console.error("render:",e);}}
+
 function goToTab(tab){const nav=document.querySelector('[data-tab="'+tab+'"]');if(nav)nav.click();}
 function rsvDest(el){const[a,f]=el.dataset.a.split('_');openRsvFrom(a,f);}
 function clearFilters(){['ctrlFranja','ctrlProg','ctrlFiltro'].forEach(id=>document.getElementById(id).value='');render();}
