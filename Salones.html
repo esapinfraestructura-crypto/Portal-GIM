@@ -2870,6 +2870,25 @@ function bloqEl(el){toggleBloq(el.dataset.id,el.dataset.block==='true');}
 function approveEl(el){changeStatus(el.dataset.id,'confirmada');}
 function rejectEl(el){changeStatus(el.dataset.id,'rechazada');}
 
+function initProgAreas(){
+  // Escuchar cambios en la programacion de todas las areas
+  try{
+    if(!db)return;
+    if(PROG_REF)PROG_REF.off();
+    PROG_REF=db.ref('programacion_2027_1');
+    PROG_REF.on('value',function(snap){
+      PROG_AREAS={};
+      var d=snap.val();
+      if(d)Object.keys(d).forEach(function(area){
+        PROG_AREAS[area]=d[area]||{};
+      });
+      if(TAB==='miprog')renderMiProg();
+    },function(err){
+      console.error('initProgAreas error:',err);
+    });
+  }catch(e){console.error('initProgAreas:',e);}
+}
+
 /* ═══ MÓDULO ÁREAS — PROGRAMACIÓN 2027-1 ═══ */
 function renderMiProg(){
   var cont=document.getElementById('main-content');
