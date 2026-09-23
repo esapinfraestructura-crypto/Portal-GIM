@@ -1734,7 +1734,7 @@ async function cargarEventosIniciales(){
   console.log('✅ Eventos especiales cargados en Firebase');
 }
 /* ═══ FIREBASE ═══ */
-function initFirebase(){
+function initFirebaseCore(){
   updateProgBanner();
   document.getElementById('ctrlFecha').value=FECHA;
   document.getElementById('bFecha').value=FECHA;
@@ -3265,9 +3265,8 @@ function estCelConAreas(aulaId, fecha, franja){
 }
 
 // Llamar initClasesAreas cuando Firebase esté listo
-const _origInitFB = initFirebase;
 function initFirebase(){
-  _origInitFB();
+  initFirebaseCore();
   setTimeout(initClasesAreas, 1200);
 }
 
