@@ -1596,7 +1596,7 @@ let PROGS = [{n:'Pregrado 2026-2',m:'AP/EP',tot:CLS.length,fi:'2026-08-10',ff:'2
 let RSV = {}, USERS = {}, BLOQUEADOS = new Set(), FECHA_LOCK = null;
 let FECHA=new Date().toISOString().slice(0,10), VISTA='grilla', TAB='grilla';
 let EDID=null, TIPO='dep', SELECTED_DAYS=new Set(), FICHA_ID=null;
-let dbRef=null, usersRef=null, bloqRef=null, modoLocal=false;
+let db=null,dbRef=null, usersRef=null, bloqRef=null, modoLocal=false;
 let UA=null; // usuario actual
 
 /* ═══ HELPERS ═══ */
@@ -1703,7 +1703,7 @@ function applyUserUI(){
   // Admin nav
   const navAdmin=document.getElementById('navAdmin');
   const navAdminSec=document.getElementById('navAdminSection');
-  initProgAreas();
+  // initProgAreas() se llama desde initFirebase() una vez db esté listo
   if(UA.rol==='coord_area'){document.getElementById('navProgSection').style.display='';document.getElementById('navMiProg').style.display='';setTimeout(function(){goToTab('miprog');},200);}
   if(UA.rol==='admin'){navAdmin.style.display='flex';navAdminSec.style.display='block';}
   // Si es consultor va directo al dashboard
@@ -1746,12 +1746,15 @@ function initFirebase(){
     render();return;
   }
   try{
-    const app=firebase.initializeApp({databaseURL:CFG.FIREBASE_URL});
-    const db=firebase.database(app);
+    let app;
+    try{app=firebase.initializeApp({databaseURL:CFG.FIREBASE_URL});}
+    catch(e){app=firebase.app();}  // App ya existe — reusar
+    db=firebase.database(app);
     dbRef=db.ref('reservas');
     usersRef=db.ref('usuarios_extra');
     bloqRef=db.ref('salones_bloqueados');
     setSyncStatus('Conectando…','wait');
+    setTimeout(initProgAreas,500); // Llamar después de que db esté listo
     render(); // Render inmediato con datos locales (clases sin reservas)
     dbRef.on('value',snap=>{
       RSV={};const d=snap.val();if(d)Object.keys(d).forEach(k=>RSV[k]=d[k]);
@@ -2629,7 +2632,7 @@ async function saveRsv(){
     if(!EDID&&obj.estado==='confirmada')await sendEmail(obj);
     const okEl=document.getElementById('rsvOk');okEl.textContent='✅ Reserva '+(EDID?'actualizada':'guardada')+' exitosamente.';okEl.className='alert-ok on';
     setTimeout(()=>closePanel('ovRsv'),1800);toast(EDID?'✓ Actualizada':'✓ Guardada y confirmación enviada','ok');
-  }catch(e){toast('❌ Error al guardar','err');}
+  }catch(e){console.error('saveRsv error:',e);toast('❌ Error: '+(e&&e.message?e.message:'Sin conexión Firebase'),'err');}
   finally{btn.innerHTML='<i class="bi bi-check-lg"></i> Guardar Reserva';btn.disabled=false;}
 }
 function showRsvAlert(m){const e=document.getElementById('rsvAlert');e.textContent=m;e.className='alert-form on';}
