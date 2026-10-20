@@ -1571,6 +1571,68 @@ function applyUserUI(){
 
 
 /* ═══ CARGAR EVENTOS ESPECIALES INICIALES ═══ */
+async function cargarReservasAdmision(){
+  if(modoLocal||!dbRef)return;
+  // Verificar si ya existen reservas de admisión 2027-1
+  const snap=await dbRef.orderByChild('actividad').equalTo('Proceso de Admisión Pregrado 2027-1').once('value');
+  if(snap.val())return; // ya cargadas
+  const reservasAdmision=[
+    {aula:'101',fecha:'2026-11-30',hi:'07:00',hf:'09:00'},
+    {aula:'101',fecha:'2026-11-30',hi:'11:00',hf:'18:00'},
+    {aula:'301',fecha:'2026-11-30',hi:'07:00',hf:'11:00'},
+    {aula:'301',fecha:'2026-11-30',hi:'13:00',hf:'18:00'},
+    {aula:'302',fecha:'2026-11-30',hi:'07:00',hf:'18:00'},
+    {aula:'303',fecha:'2026-11-30',hi:'07:00',hf:'13:00'},
+    {aula:'304',fecha:'2026-11-30',hi:'07:00',hf:'18:00'},
+    {aula:'101',fecha:'2026-12-01',hi:'10:00',hf:'18:00'},
+    {aula:'301',fecha:'2026-12-01',hi:'07:00',hf:'09:00'},
+    {aula:'301',fecha:'2026-12-01',hi:'16:00',hf:'18:00'},
+    {aula:'302',fecha:'2026-12-01',hi:'07:00',hf:'18:00'},
+    {aula:'303',fecha:'2026-12-01',hi:'07:00',hf:'18:00'},
+    {aula:'304',fecha:'2026-12-01',hi:'07:00',hf:'09:00'},
+    {aula:'304',fecha:'2026-12-01',hi:'12:00',hf:'18:00'},
+    {aula:'101',fecha:'2026-12-02',hi:'07:00',hf:'18:00'},
+    {aula:'301',fecha:'2026-12-02',hi:'09:00',hf:'14:00'},
+    {aula:'301',fecha:'2026-12-02',hi:'16:00',hf:'18:00'},
+    {aula:'302',fecha:'2026-12-02',hi:'07:00',hf:'18:00'},
+    {aula:'303',fecha:'2026-12-02',hi:'09:00',hf:'18:00'},
+    {aula:'304',fecha:'2026-12-02',hi:'07:00',hf:'18:00'},
+    {aula:'101',fecha:'2026-12-03',hi:'11:00',hf:'18:00'},
+    {aula:'301',fecha:'2026-12-03',hi:'11:00',hf:'16:00'},
+    {aula:'302',fecha:'2026-12-03',hi:'07:00',hf:'09:00'},
+    {aula:'302',fecha:'2026-12-03',hi:'11:00',hf:'18:00'},
+    {aula:'303',fecha:'2026-12-03',hi:'09:00',hf:'14:00'},
+    {aula:'304',fecha:'2026-12-03',hi:'07:00',hf:'18:00'},
+    {aula:'101',fecha:'2026-12-04',hi:'07:00',hf:'09:00'},
+    {aula:'101',fecha:'2026-12-04',hi:'11:00',hf:'18:00'},
+    {aula:'301',fecha:'2026-12-04',hi:'07:00',hf:'18:00'},
+    {aula:'302',fecha:'2026-12-04',hi:'07:00',hf:'18:00'},
+    {aula:'303',fecha:'2026-12-04',hi:'09:00',hf:'18:00'},
+    {aula:'304',fecha:'2026-12-04',hi:'07:00',hf:'10:00'},
+    {aula:'304',fecha:'2026-12-04',hi:'13:00',hf:'18:00'},
+    {aula:'101',fecha:'2026-12-05',hi:'07:00',hf:'18:00'},
+    {aula:'301',fecha:'2026-12-05',hi:'07:00',hf:'18:00'},
+    {aula:'302',fecha:'2026-12-05',hi:'14:00',hf:'18:00'},
+    {aula:'303',fecha:'2026-12-05',hi:'14:00',hf:'18:00'},
+    {aula:'304',fecha:'2026-12-05',hi:'07:00',hf:'18:00'},
+  ];
+  for(const r of reservasAdmision){
+    const nr=dbRef.push();
+    const obj={...r,
+      id:nr.key,ts:Date.now(),
+      fechas:[r.fecha],
+      solicitante:'Eva De La Candelaria Maldonado Comelin',
+      correo:'evadcand@esap.edu.co',
+      dep:'Decanatura de Pregrados',
+      actividad:'Proceso de Admisión Pregrado 2027-1',
+      obs:'Solicitud de Jorge A. Cárdenas Cardona - Decanatura de Pregrados. Tel: 6017956110 Ext.4212',
+      tipo:'reserva',estado:'confirmada',
+      creadoPor:'Eva Maldonado',fechaCreacion:'2026-10-20'
+    };
+    await nr.set(obj);
+  }
+  console.log('✅ Reservas admisión 2027-1 cargadas en Firebase');
+}
 async function cargarEventosIniciales(){
   if(modoLocal||!dbRef)return;
   // Solo cargar si no existen ya
@@ -1617,7 +1679,7 @@ function initFirebase(){
     setSyncStatus('Conectando…','wait');
     dbRef.on('value',snap=>{
       RSV={};const d=snap.val();if(d)Object.keys(d).forEach(k=>RSV[k]=d[k]);
-      setSyncStatus('🟢 En tiempo real','on');render();cargarEventosIniciales();
+      setSyncStatus('🟢 En tiempo real','on');render();cargarEventosIniciales();cargarReservasAdmision();
     },()=>setSyncStatus('❌ Sin conexión','off'));
     usersRef.on('value',snap=>{
       USERS={};
